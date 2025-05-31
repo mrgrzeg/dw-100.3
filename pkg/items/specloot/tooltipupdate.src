@@ -1,0 +1,41 @@
+use uo;
+use cfgfile;
+
+//--------------------------------------------------------------------------------
+
+include "include/items";
+include "include/finding";
+include "include/names";
+
+//--------------------------------------------------------------------------------
+
+program ToolTipUpdate(Parms)
+
+  if(!FillGlobCtrl(Parms))
+    return 0;
+  endif
+
+  var ItemCfg := ReadConfigFile(ITEMS_CFG);
+  var ItemsArr, Item;
+
+  while(1)
+    ItemsArr := GetGlobalProperty("QrewordsItemsSerial");
+
+    foreach serial in ItemsArr
+      Item := FindItemBySerial(serial);
+
+      if(Item)
+        if(ItemCfg[Item.objtype].SpecLoot)
+          if(GetObjProperty(Item, "QrewordTime") > 0)
+            var Time := GetTimeToDestroy(item) - PolCore().systime;
+            SetToolTipProp(Item, ITEM_DECAY_TIME_DESC, RealTime(Time));
+          endif
+        endif
+      endif
+    endforeach
+
+    Sleep(55+RandomInt(5));
+
+  endwhile
+
+endprogram

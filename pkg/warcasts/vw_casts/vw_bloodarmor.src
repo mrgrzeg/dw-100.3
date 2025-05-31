@@ -1,0 +1,44 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/systems/vampire/vampire";
+include "../pkg/systems/weather/weather";
+include "include/clock";
+
+//-----------------------------------------------------------------------------
+
+const VW_WCID                := 31;
+
+//-----------------------------------------------------------------------------
+
+program VwBloodArmor(Parms)
+
+  VampireRuneCast(Parms, VW_WCID);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  __ParamUnused(CastOn);
+
+  if(!CanSkillMod(Caster, SKILLID_PARRY))
+    WcFizzleId(Caster, "Jestes juz pod wplywem zaklecia!", VW_WCID);
+    return 0;
+  endif
+
+  var Duration  := CInt(GetWarCastDuration(Caster, WCT_VAMPIRE) / 2);
+  var ModAmount := CInt(GetEffectiveSkill(Caster, SKILLID_VAMPIRE) / 13 + GetEffectiveSkill(Caster, SKILLID_SPIRITSPEAK) / 13)+1;
+
+  PlaySoundEffect(Caster, SFX_SPELL_PROTECTION);
+  PlayObjectCenteredEffect(Caster, FX_BLESS_EFFECT, 7,7);
+  //DoMod(Caster, MOD_AR, ModAmount, Duration);
+  DoSkillMod(Caster, SKILLID_PARRY, ModAmount, Duration);
+
+  GainWarcastPoints(Caster, Caster, VW_WCID, WCGAIN_DEFENSIVE);
+
+  return 1;
+
+endfunction
+
+//--------------------------------------------------------------------------------

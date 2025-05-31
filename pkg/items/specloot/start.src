@@ -1,0 +1,14 @@
+//-----------------------------------------------------------------------------
+
+include "include/start";
+
+//-----------------------------------------------------------------------------
+
+program StartUp()
+
+  AddGlobCtrlScript(":specloot:tooltipupdate", "ToolTip Update Ctrl");
+  StartGlobCtrlScript(":specloot:tooltipupdate");
+
+endprogram
+
+//-----------------------------------------------------------------------------

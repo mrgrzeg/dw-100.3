@@ -1,0 +1,230 @@
+//-----------------------------------------------------------------------------
+
+use npc;
+
+//-----------------------------------------------------------------------------
+
+include ":donations:royalmerchant";
+include "include/cmds/misc";
+include "ai/include/ainpcs";
+include "ai/include/npch";
+include "ai/include/npcspeech";
+include "ai/setup/citynpcsetup";
+include "ai/include/smartrun";
+include "include/items";
+
+
+//-----------------------------------------------------------------------------
+
+EnableEvents( EVID_SPEECH,SPEECH_RANGE);
+EnableEvents( EVID_ITEM_GIVEN );
+
+//-----------------------------------------------------------------------------
+
+program RoyalMerchant_AI()
+
+  SetLogRunCycles(LST_AI);
+
+  while (me)
+
+    if(!ev)
+      ev := wait_for_event( waittime );
+    endif
+
+    if(ev.type == EVID_ITEM_GIVEN)
+      if(ev.item.objtype == UOBJ_TICKET)
+        TurnToward(ev.source);
+        if(GiveAnniversaryGifts(ev.source, ev.item))
+          DestroyItem(ev.item);
+        else
+          MoveItemToContainer( ev.item, ev.source.backpack );
+        endif
+        ev := 0;
+      endif
+    endif
+
+    StdCityNpcHandleEvent(ev);
+    StdCityNpcEventLoop();
+    
+  endwhile
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CheckMySpeech(who, text)
+
+  if(text["kupi"])
+    TurnToward(who);
+    if(CanNpcSpeakWith(who))
+        StartTrade(who);
+    endif
+  else
+    return 0;
+  endif
+
+  return 1;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function StartTrade(who)
+  var Items := array;
+  GetDonationItems(Items);
+  var Res := struct;
+
+  Res.+type    := EVID_NH_ROYAL_GUMP;
+  Res.+source  := who;
+  Res.+npc     := me;
+  Res.+items   := Items;
+  StdNpcHandleWait(Res);
+  if(ev == error)
+    return;
+  endif
+  
+  if(!CanIHearPlayer(who) or !CanNpcSpeakWith(who))
+    SendSysMessage(who, "Jestes za daleko od sprzedawcy", FONT_NORMAL, COLOR_RED);
+    return;
+  endif
+
+  if(Res.cancel)
+    say("Zapraszam wiec innym razem");
+    return;
+  
+  elseif(Res.selitem)
+    var objDesc := GetItemDescriptor(Res.selitem);
+    var price;
+    foreach Item in Items
+      if(Cint(Item[1])==Cint(Res.selitem) || Cint(Item[3])==Cint(Res.selitem))
+        price := Cint(Item[2]);
+      endif
+    endforeach
+    if(price)
+      var coins := CInt(GetObjProperty(who, "HonorPoints"));
+      if(coins<price)
+        say("Niestety nie stac cie na ten przedmiot");
+		    Say("Masz tylko " + coins + " a potrzebujesz na ten przedmiot " + price);
+        return;
+      endif
+      SetObjProperty(who, "HonorPoints", coins - price);
+      var Item := CreateItemInPack(who, objDesc);
+      if(Item)
+        Say("Prosze bardzo i zapraszam ponownie!");
+        SetItemBound(Item, who);
+        
+        var time := ReadConfigFile(ITEMS_CFG)[Item.objtype].TimeExist;
+        if(time)
+          SetObjProperty(Item, "available", ReadGameClock()+time);
+        endif
+        
+        var StatsItems := GetGlobalProperty("DonationStatsItems");
+        var StatsPlayers := GetGlobalProperty("DonationStatsPlayers");
+        
+        if (!StatsItems)
+          StatsItems := dictionary;
+        endif
+        
+        if(!StatsItems[Res.selitem])
+          StatsItems[Res.selitem] := 1;
+        else
+          StatsItems[Res.selitem] := Cint(StatsItems[Res.selitem] + 1);
+        endif
+        
+        if (!StatsPlayers)
+          StatsPlayers := dictionary;
+        endif
+        
+        if(!StatsPlayers[who.acctname])
+          StatsPlayers[who.acctname] := 1;
+        else
+          StatsPlayers[who.acctname] := Cint(StatsPlayers[who.acctname] + 1);
+        endif
+        
+        SetGlobalProperty( "DonationStatsItems", StatsItems );
+        SetGlobalProperty( "DonationStatsPlayers", StatsPlayers );
+      else
+        Say("Nie moge Ci teraz tego sprzedac.");
+      endif
+    endif
+  endif
+endfunction
+
+//--------------------------------------------------------------------
+
+function GiveAnniversaryGifts(who, item)
+
+  var cfgGifts := ReadConfigFile( ":xmas:gifts" );
+  var ItemCfg  := ReadConfigFile(ITEMS_CFG);
+  var RobeArr  := SplitWords(cfgGifts["ServerAnniversary"].RandomItem);
+  var WeaponArr := SplitWords(cfgGifts["ServerAnniversary"].SkillItem);
+  var ItemStack := SplitWords(cfgGifts["ServerAnniversary"].ItemStack);
+  var TimeToDestroy := CInt(cfgGifts["ServerAnniversary"].TimeToDestroy);
+  var GiftBox := FindItemBySerial(GetObjProperty(who, "GiftBox"));
+  var Weapon,Robe;
+
+  for i:=1 to 100
+    Robe := RobeArr.randomentry();
+    var SkReq := SplitWords(ItemCfg[Robe].SkillReq);
+    if(GetBaseSkill(who, CInt(SkReq[1])) > 0 or !ItemCfg[Robe].SkillReq)
+      break;
+    endif
+  endfor
+
+  foreach temp in WeaponArr
+    if(GetBaseSkill(who,SKILLID_SWORDSMANSHIP) > 0 and ItemCfg[temp].Attribute == "Swordsmanship")
+      Weapon := temp;
+      break;
+    elseif(GetBaseSkill(who,SKILLID_MACEFIGHTING) > 0 and ItemCfg[temp].Attribute == "Macefighting")
+      Weapon := temp;
+      break;
+    elseif(GetBaseSkill(who,SKILLID_FENCING) > 0 and ItemCfg[temp].Attribute == "Fencing")
+      Weapon := temp;
+      break;
+    elseif(GetBaseSkill(who,SKILLID_AXESMANSHIP) > 0 and ItemCfg[temp].Attribute == "Axesmanship")
+      Weapon := temp;
+      break;
+    endif
+  endforeach
+
+  var GiftItem1 := CreateItemInCont( who.backpack, Robe );
+  var GiftItem2 := CreateItemInCont( who.backpack, Weapon );
+  var GiftItem3 := CreateItemInCont( who.backpack, cfgGifts["ServerAnniversary"].Item ); //teleportbook
+  var GiftItem4 := CreateItemInCont( who.backpack, ItemStack[1],  CInt(ItemStack[2]) ); //teleportbookscroll, 100
+
+  if(!GiftItem1 and !GiftItem2 and !GiftItem3 and !GiftItem4)
+    DestroyItem(GiftItem1);
+    DestroyItem(GiftItem2);
+    DestroyItem(GiftItem3);
+    DestroyItem(GiftItem4);
+    return 0;
+  endif
+
+  SetItemExpire(who, GiftItem1, TimeToDestroy);
+  SetItemExpire(who, GiftItem2, TimeToDestroy);
+  SetItemExpire(who, GiftItem3, TimeToDestroy);
+  SetItemExpire(who, GiftItem4, TimeToDestroy);
+  DestroyItem(GiftBox);
+
+  return 1;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function SetItemExpire(who, Item, TimeToDestroy)
+
+  var Time := PolCore().systime + TimeToDestroy;
+  SetObjProperty(Item, "QrewordTime", Time);
+
+  var ItemsList := GetGlobalProperty("QrewordsItemsSerial");
+
+  if(!ItemsList or !ItemsList.size())
+    ItemsList := array;
+  endif
+
+  ItemsList.append(Item.serial);
+
+  SetGlobalProperty("QrewordsItemsSerial", ItemsList);
+
+endfunction

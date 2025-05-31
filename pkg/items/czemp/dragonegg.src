@@ -1,0 +1,93 @@
+use uo;
+//-----------------------------------------------------------------------------
+
+include "include/command_func";
+
+//-----------------------------------------------------------------------------
+
+const WARMING_DELAY := 1;
+const END_WARMING := 604800; //tydzien
+
+//-----------------------------------------------------------------------------
+
+program DragonEgg(item)
+
+  var ItemCfg := ReadConfigFile(ITEMS_CFG);
+  var who;
+  var IsBreaking := 0;
+
+  if(!item)
+    return;
+  endif
+
+  while(item)
+  
+    if(!GetObjProperty(item, "OdliczanieRozpoczete"))
+      var TopCont := GetTopCont(item);
+      if(TopCont)
+        who := TopCont.container;
+      endif
+      if(IsPlayer(who) and who.getgottenitem() == item and !IsStaff(who))
+        foreach itm in ListItemsNearLocation( who.x, who.y, LIST_IGNORE_Z, 2, who.realm )
+          if(ItemCfg[itm.objtype].desc == "piaskowy kominek" or ItemCfg[itm.objtype].desc == "kamienny kominek")
+            while(1)
+              Sleep(WARMING_DELAY);
+              foreach itm in ListItemsNearLocation( item.x, item.y, LIST_IGNORE_Z, 2, item.realm )
+                if(ItemCfg[itm.objtype].desc == "piaskowy kominek" or ItemCfg[itm.objtype].desc == "kamienny kominek")
+                  IsBreaking := 1;
+                  break;
+                endif
+              endforeach
+              if(IsBreaking)
+                break;
+              endif
+            endwhile
+            if(IsBreaking and GetBaseSkill(who, SKILLID_TAMING) >= 110)
+              SetObjProperty(item, "WhoSerial", who.serial);
+              SetObjProperty(item, "OdliczanieRozpoczete", 1);
+              PrintTextAbove(item, "rozpoczelo sie wygrzewanie");
+            else
+              SendBad(who, "Masz za malo umiejetnosci oswajanie by rozpoczac wygrzewanie.");
+              IsBreaking := 0;
+            endif
+            break;
+          endif
+        endforeach
+      endif
+    endif
+
+    Sleep(WARMING_DELAY);
+
+    if(GetObjProperty(item, "OdliczanieRozpoczete"))
+      foreach itm in ListItemsNearLocation( item.x, item.y, item.z, 1, item.realm )
+        if(ItemCfg[itm.objtype].desc == "piaskowy kominek" or ItemCfg[itm.objtype].desc == "kamienny kominek")
+          var WarmingTime := CInt(GetObjProperty(item, "WarmingTime"));
+          SetObjProperty(item, "WarmingTime", WARMING_DELAY+WarmingTime);
+          break;
+        endif
+      endforeach
+
+      if(!who)
+        who := FindPlayerBySerial(GetObjProperty(item, "WhoSerial"));
+      endif
+
+      if(CInt(GetObjProperty(item, "WarmingTime")) > END_WARMING and who)
+        PrintTextAbove(item, "*wykluwa sie*");
+        Sleep(1);
+        var x := item.x;
+        var y := item.y;
+        var z := item.z;
+        var r := item.realm;
+        DestroyItem(item);
+        var Npc := CreateNpc("lizard",x,y,z,r,DEF_PARMS,0);
+        SetObjProperty(Npc,PROP_OWNER,who.serial);
+        SetObjProperty(Npc,"FromEgg",ReadGameClock());
+        Tame(Npc, who);
+        return;
+      endif
+    endif
+  endwhile
+  
+endprogram
+
+//-----------------------------------------------------------------------------

@@ -1,0 +1,78 @@
+//-----------------------------------------------------------------------------
+
+include ":magic:magic";
+include "include/items";
+include "include/items/temp_storage";
+include "include/mobile/npcs/specs";
+include ":wearwolf:common";
+
+//-----------------------------------------------------------------------------
+
+const SPELL_ID   := 106;
+
+//-----------------------------------------------------------------------------
+
+program CastTidalWave( nSpellParms )
+
+  SpellCast(nSpellParms, SPELL_ID, TRGT_OBJECT, TRGO_HARMFUL);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function SpellAction(Caster, CastOn)
+
+  if(IsWearWolfMorphed(Caster))
+    Fizzle(Caster, "Nie mozesz w tej formie rzucic tego czaru.");
+    return;
+  endif
+
+  if(CastOn.isa(POLCLASS_ITEM))
+    ReleaseItem(CastOn);
+  endif
+
+  if(Dispersed(Caster, CastOn))
+    return;
+  endif
+
+  SetScriptController( caster );
+  Detach();
+
+
+  var Dmg := CalcSpellDamage(SpellGlob.Circle, Caster, CastOn, SpellGlob.Type);
+
+  SetScriptController(Caster);
+  PlayPcMovEffect( Caster, CastOn, FX_FIREBALL, 1151, 0x5, 0x1, 0x1);
+  PlaySoundEffect( CastOn, SFX_SPELL_ICE_BOLT );
+
+  if(Reflected(CastOn, Caster))
+    PlayPcMovEffect( CastOn, Caster, FX_FIREBALL, 1151, 0x5, 0x1, 0x1);
+    PlaySoundEffect( Caster, SFX_SPELL_ICE_BOLT );
+    CastOn := Caster;
+  endif
+
+
+  if(CastOn.isa(POLCLASS_MOBILE))
+    DoMod(CastOn, MOD_PARA, 1, 1);
+  endif
+
+
+  if (isPlayer(CastOn))
+    DealManaDamage(CastOn, CInt(6+ RandomInt(4)), Caster);
+  else
+    DealManaDamage(CastOn, CInt((6+ RandomInt(4))*0.5), Caster);
+  endif
+
+  var DmgRes := DoMagicDamage(CastOn, Caster, Dmg, SpellGlob.Circle, SpellGlob.DmgType, SpellGlob.Type);
+
+  if(DmgRes > 0)
+    GainSpellPoints(Caster, CastOn, MAGICGAIN_OFFENSIVE); 
+  endif
+
+  SendChEvent(CastOn,Caster,EVID_ENGAGED);
+
+  return 1;
+
+endfunction
+
+//-----------------------------------------------------------------------------

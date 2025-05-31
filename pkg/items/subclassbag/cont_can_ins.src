@@ -1,0 +1,26 @@
+
+include "include/items/containers";
+include ":subclassbag:common";
+
+//-----------------------------------------------------------------------------
+
+program can_insert(who, bag, movetype, inserttype, adding_item, existing_stack)
+ 
+  __ParamUnused(movetype);
+  __ParamUnused(inserttype);
+
+  var Item := adding_item;
+  if(!Item)
+    Item := existing_stack;
+  endif
+
+  if(!(item.objtype in GetSubClassReagentsList(who, bag)))
+    SendBad(who, "Nie mozesz tego tu wlozyc");
+    return 0;
+  endif
+
+  return StdCanContainerInsert(who, bag, item);
+
+endprogram
+
+//-----------------------------------------------------------------------------

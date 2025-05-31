@@ -1,0 +1,69 @@
+
+//-----------------------------------------------------------------------------
+
+include "include/checks/objchecks";
+include "include/items";
+include "include/buildings";
+
+include ":housing:housing";
+include ":housing:finding";
+
+//-----------------------------------------------------------------------------
+
+program PersonalCrystal(who, deed)
+
+  if(NoTeleportZone(who.x,who.y,who.z,who.Realm))
+    return;
+  endif
+
+  var Place := LocTarget(who);
+  if(!Place)
+    SendBad(who, "Anulowano.");
+    return;
+  endif
+
+  NoLongerBusy(who);
+
+  if(CheckPlaceForMulti(Place,who.realm).serial)
+    SendSysMessage(who,"Nie mozesz postawic krysztalu w domu.",FONT_NORMAL,COLOR_RED);
+    return;
+  endif
+
+  if(FindCity(who))
+    SendSysMessage(who,"Nie mozesz postawic krysztalu w miescie.",FONT_NORMAL,COLOR_RED);
+    return;
+  endif
+
+  var z := GetStandZ(Place.x, Place.y, who.realm, Place.z);
+
+  if(z == error or DistZ(z, Place.z) > 15)
+    SendSysMessage(who, "To miejsce jest niedostepne.", FONT_NORMAL, COLOR_RED);
+    return;
+  endif
+
+  var TeleCrystal := CreateItemAtLoc(Place.x, Place.y, z, UOBJ_HOUSE_TELECRYSTAL, 1, who.realm);
+  
+  if(TeleCrystal)
+    TeleCrystal.movable := 0;
+    SetObjProperty(TeleCrystal, "Loc", array(Place.x, Place.y, z, who.realm));
+    SendSysMessage(who,"Postawil"+ggm(who,3)+" krysztal domowy, jednak rozpadnie sie on za dwie minuty.",FONT_NORMAL,COLOR_GREEN);
+    
+    SetObjProperty(TeleCrystal, "QrewordTime", (PolCore().systime + 120));
+    var ItemsList := GetGlobalProperty("QrewordsItemsSerial");
+
+    if(!ItemsList or !ItemsList.size())
+      ItemsList := array;
+    endif   
+    
+    ItemsList.append(TeleCrystal.serial);
+    SetGlobalProperty("QrewordsItemsSerial", ItemsList);
+    DestroyItem(deed);
+    return;
+  else
+    SendSysMessage(who,"Nie udalo Ci sie postawic krysztalu domowego.",FONT_NORMAL,COLOR_RED);
+    return;
+  endif
+
+endprogram
+
+//-----------------------------------------------------------------------------

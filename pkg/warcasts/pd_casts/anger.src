@@ -1,0 +1,49 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+include "include/attack";
+
+//-----------------------------------------------------------------------------
+
+const PD_WCID                := 32;
+
+//-----------------------------------------------------------------------------
+
+program PdAnger(Parms)
+
+  WarCast(Parms, PD_WCID,0);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+ 
+  if(IsMagicItem(Caster.weapon) or IsArtifact(Caster.weapon))
+    WcFizzleId(Caster, "Tej broni nie pokryjesz lodem.", PD_WCID);
+    return;
+  endif
+
+  var VpSkill  := GetEffectiveSkill(Caster,SKILLID_PALADINISM);
+  var SpSkill  := GetEffectiveSkill(Caster,SKILLID_ZEAL);
+  var Duration := (VpSkill + (SpSkill / 2)) * 2 + RandomInt(20);
+  var bDmg     := (VpSkill / 25) + (SpSkill / 25) + RandomInt(3);
+  /*var ModFlags := __IfElse(IsDungeonWarCasted(PD_WCID), MODF_CHECK_VAMPIRE, 0);*/
+
+  PlaySoundEffect(Caster,SFX_SPELL_PARA_FIELD);
+  PlayPcStEffect( Caster.x, Caster.y, Caster.z, Caster.realm, FX_CURSE_EFFECT, 1151, 0xF, 0xF);
+
+  /*if(CanMod(Caster, MOD_LIGHT_DMG))
+    GainWarcastPoints(Caster, Caster, PD_WCID, WCGAIN_OFFENSIVE);
+  endif*/
+
+  UndoMod(Caster, MOD_FIRE_BLOOD);
+  //UndoMod(Caster, MOD_MANA_DMG);
+  DoMod( Caster, MOD_LIGHT_DMG, bDmg, Duration, 0);
+  
+  return 1;
+
+endfunction
+
+//--------------------------------------------------------------------------------

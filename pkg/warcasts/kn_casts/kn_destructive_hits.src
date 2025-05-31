@@ -1,0 +1,184 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+include "include/mobile/npcs/specs";
+
+//-----------------------------------------------------------------------------
+
+const KN_WCID                := 129;
+
+//-----------------------------------------------------------------------------
+
+program KnDestructiveHits(Parms)
+
+  WarCast(Parms, KN_WCID, 0, TRGT_MOB, TRGT_MOB);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  var Graphic := 0x0F0D;
+  PlayMovEffXYZ( Caster.x, Caster.y, Caster.z+15, CastOn.x, CastOn.y, CastOn.z, Graphic, 8, 0, 0, Caster.realm );
+  Sleepms(250);
+  PlayStationaryEff(CastOn.x-1, CastOn.y,   CastOn.z, FX_TELE_VANISH, 1, 15, 0, Caster.realm);
+  PlayStationaryEff(CastOn.x-1, CastOn.y-1, CastOn.z, FX_TELE_VANISH, 1, 15, 0, Caster.realm);
+  PlayStationaryEff(CastOn.x,   CastOn.y-1, CastOn.z, FX_TELE_VANISH, 1, 15, 0, Caster.realm);
+  PlayStationaryEff(CastOn.x+1, CastOn.y-1, CastOn.z, FX_TELE_VANISH, 1, 15, 0, Caster.realm);
+  PlayStationaryEff(CastOn.x+1, CastOn.y,   CastOn.z, FX_TELE_VANISH, 1, 15, 0, Caster.realm);
+  PlayStationaryEff(CastOn.x+1, CastOn.y+1, CastOn.z, FX_TELE_VANISH, 1, 15, 0, Caster.realm);
+  PlayStationaryEff(CastOn.x, CastOn.y+1,   CastOn.z, FX_TELE_VANISH, 1, 15, 0, Caster.realm);
+  PlayStationaryEff(CastOn.x-1, CastOn.y+1, CastOn.z, FX_TELE_VANISH, 1, 15, 0, Caster.realm);
+  PlayStationaryEff(CastOn.x-1, CastOn.y,   CastOn.z, FX_TELE_VANISH, 1, 15, 0, Caster.realm);
+
+  var SpecBroken := 0;
+  var Res := BreakNpcSpecial(CastOn, NSPEC_ABYSSFORCE);
+  var SpecAbyssForceBreakCntDict := GetObjProperty(Caster, "SpecAbyssForceBreakCntDict");
+
+  if(!IsDict(SpecAbyssForceBreakCntDict))
+    SpecAbyssForceBreakCntDict := dictionary;
+  endif
+
+  SpecAbyssForceBreakCntDict[CastOn.serial] := CInt(SpecAbyssForceBreakCntDict[CastOn.serial]) + 1;
+  SetObjProperty(Caster, "SpecAbyssForceBreakCntDict", SpecAbyssForceBreakCntDict);
+
+  if(SpecAbyssForceBreakCntDict[CastOn.serial] >= 2)
+    Res := BreakNpcSpecial(CastOn, NSPEC_ABYSSFORCE, 10);
+    SpecAbyssForceBreakCntDict.erase(CastOn.serial);
+    SetObjProperty(Caster, "SpecAbyssForceBreakCntDict", SpecAbyssForceBreakCntDict);
+  endif
+
+  if(Res > 0)
+    SendSysMessage(Caster, "Przelamal"+ggm(Caster,3)+" koncetracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przelamal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_MINDCONTROL, 151);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przerwal"+ggm(Caster,3)+" kontrole umyslu!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przerwal"+ggm(Caster,3)+" kontrole umyslu!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_CONFLAGRATION, 151);
+  if(Res > 0)
+    SendSysMessage(Caster, "Ugasil"+ggm(Caster,3)+" ogien "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie ugasil"+ggm(Caster,3)+" ogien "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_ENERGYSHIELD, 301);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przebil"+ggm(Caster,3)+" tarcze "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przebil"+ggm(Caster,3)+" tarcze "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_MINDRAGE, 3);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przelamal"+ggm(Caster,3)+" koncetracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przelamal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_SUMMONMINIONS, 3);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przerwal"+ggm(Caster,3)+" przyzwanie pomiotow!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przerwal"+ggm(Caster,3)+" przyzwanie pomiotow!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_CORPSEEATER, 3);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przelamal"+ggm(Caster,3)+" koncetracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przelamal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_CORPSESPITTER, 3);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przelamal"+ggm(Caster,3)+" plugawy atak "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przelamal"+ggm(Caster,3)+" plugawy atak "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_STONEFALL, 3);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przelamal"+ggm(Caster,3)+" koncetracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przelamal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_BLADEDANCE, 4);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przelamal"+ggm(Caster,3)+" koncetracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przelamal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_REVEALTERROR, 151);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przelamal"+ggm(Caster,3)+" koncetracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przelamal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_REGENERATION, 16);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przelamal"+ggm(Caster,3)+" regeneracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przelamal"+ggm(Caster,3)+" regeneracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_POLYMORPH, 160, "fire");
+  if(Res > 0)
+    SendSysMessage(Caster, "Ugasil"+ggm(Caster,3)+" ogien "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie ugasil"+ggm(Caster,3)+" ogien "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  Res := BreakNpcSpecial(CastOn, NSPEC_CURSE, 160);
+  if(Res > 0)
+    SendSysMessage(Caster, "Przerwal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    SpecBroken := 1;
+  elseif(Res < 0)
+    SendSysMessage(Caster, "Prawie przerwal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+  endif
+
+  var HolesArr := 0;
+  foreach itm in ListItemsNearLocation(CastOn.x, CastOn.y, CastOn.z, 25, CastOn.realm)
+    var Hole := GetObjProperty(itm, "Holes");
+    if(IsArray(Hole))
+      HolesArr := Hole;
+      break;
+    endif
+  endforeach
+  if(HolesArr)
+    foreach Hole in HolesArr
+      DestroyItem(Hole);
+    endforeach
+    SendSysMessage(Caster, "Przerwal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+  endif
+
+  if(SpecBroken)
+    GainWarcastPoints(Caster, CastOn, KN_WCID, WCGAIN_OFFENSIVE);
+  endif
+
+  return 1;
+
+endfunction

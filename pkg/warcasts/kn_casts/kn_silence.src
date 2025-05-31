@@ -1,0 +1,93 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+include "include/calc";
+
+//-----------------------------------------------------------------------------
+
+const KN_WCID                := 123;
+
+//-----------------------------------------------------------------------------
+
+program KnSilence(Parms)
+
+  WarCast(Parms, KN_WCID, 0, TRGT_MOB, TRGO_HELPFUL);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  __ParamUnused(CastOn);
+
+  if(!Caster.isa(POLCLASS_NPC))
+    if(CastOn.isa(POLCLASS_NPC))
+      if(NpcHaveFlag(CastOn, "NoHeal"))
+        Fizzle(Caster,"Tego tak nie wyleczysz.");
+        return;
+      endif
+
+      if(!IsTamed(CastOn))
+        Fizzle(Caster,"Nie mozesz go wyleczyc.");
+        return;
+      endif
+    endif
+
+    if(CastOn in ListHostiles(Caster,15))
+      Fizzle(Caster,"Nie mozesz go wyleczyc.");
+      return;
+    endif
+  endif
+  
+ 
+
+
+  var SkKensai := GetEffectiveSkill(Caster, SKILLID_KENSAI);
+  var SkAnat   := GetEffectiveSkill(Caster, SKILLID_ANATOMY);
+  
+  var Healed := CInt((SkKensai+SkAnat)/2.93);
+
+  var Desc   := GetName(CastOn);
+  if(CastOn == Caster)
+    Desc := "siebie";
+  elseif(CastOn.isa(POLCLASS_NPC))
+    Desc := "stworzenie "+Desc;
+  elseif(IsPlayer(CastOn))
+    Desc := "osobe "+Desc;
+  endif
+
+  if(CastOn.isA(POLCLASS_NPC) and !IsSummoned(CastOn))
+    Healed := CInt(Healed * NPC_HEAL_MULTIPLIER);
+  endif
+
+  if(GetHp(CastOn) + Healed > GetMaxHp(CastOn))
+    Healed := GetMaxHp(CastOn) - GetHp(CastOn);
+  endif
+  
+  PlayObjectCenteredEffect( CastOn, FX_SPARK_EFFECT, 7, 0x10 );
+  PlaySoundEffect( CastOn, SFX_SPELL_GREATER_HEAL );
+  if(Healed > 0)
+    GainWarcastPoints(Caster, Caster, KN_WCID, WCGAIN_NORMAL);
+
+    HealMobile(CastOn, Healed, Caster);
+    var Perc := (GetHp(CastOn) * 100) / GetMaxHp(Caster);
+    if(Perc >= 100)
+      SendSysMessage(Caster, "Wyleczyl"+ggm(Caster, 3)+" "+Desc+" calkowicie.",FONT_NORMAL,COLOR_BLUE);
+    elseif(Healed > 45)
+      SendSysMessage(Caster, "Uleczyl"+ggm(Caster, 3)+" "+Desc+" znacznie.",FONT_NORMAL,COLOR_GREEN);
+    elseif(Healed > 25)
+      SendSysMessage(Caster, "Uleczyl"+ggm(Caster, 3)+" "+Desc+".",FONT_NORMAL,COLOR_GREEN);
+    else
+      SendSysMessage(Caster, "Nieznacznie uleczyl"+ggm(Caster, 3)+" "+Desc+".",FONT_NORMAL,COLOR_GREEN);
+    endif
+
+    SendHealToHostile(CastOn, Caster, Healed);
+  else
+    SendSysMessage(Caster, "Ta osoba jest w pelni zdrowa.",FONT_NORMAL,COLOR_GREEN);
+  endif
+
+endfunction
+
+//--------------------------------------------------------------------------------

@@ -1,0 +1,48 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+
+//-----------------------------------------------------------------------------
+
+const KN_WCID                := 131;
+
+//-----------------------------------------------------------------------------
+
+program KnLampartSpeed(Parms)
+
+  WarCast(Parms, KN_WCID, 0, TRGT_LOC, TRGT_LOC);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  var SkKensai := GetEffectiveSkill(Caster, SKILLID_KENSAI);
+  var SkTactic := GetEffectiveSkill(Caster, SKILLID_TACTICS);
+  var Dist := (SkKensai / 13) + (SkTactic / 13);
+
+  if(CoorDist( Caster.x, Caster.y, CastOn.x, CastOn.y ) > Dist)
+    SendBad(Caster, "Nie potrafisz skoczyc tak daleko.");
+    return 0;
+  endif
+
+  PlaySoundEffect(Caster, SFX_SPELL_INVISIBILITY);
+  PlaySoundEffect(Caster, SFX_FREN_WHIRLWIND);
+  var Mount := GetEquipmentByLayer(Caster, LAYER_MOUNT);
+
+  MoveObject(Caster, CastOn.x, CastOn.y, CastOn.z, CastOn.Realm, MOVEOBJECT_FORCELOCATION);
+  PlayPcStEffect(Caster.x, Caster.y, Caster.z+1, Caster.realm, FX_SMOKE, 1101, 0x10, 0xE, 3);
+
+  if(Mount and GetNpcConfig(GetObjProperty(Mount, PROP_NPCTEMP)).CanHide) 
+    Caster.hidden := 1;
+  endif
+
+  GainWarcastPoints(Caster, Caster, KN_WCID, WCGAIN_NORMAL);
+
+  return 1;
+
+endfunction
+
+//--------------------------------------------------------------------------------

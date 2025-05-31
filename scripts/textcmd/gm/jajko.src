@@ -1,0 +1,120 @@
+
+include "include/cmds/misc";
+include "include/std";
+include "include/skills/skillwin";
+include "include/gumpboxes";
+
+//-----------------------------------------------------------------------------
+
+program EggDataCmd(who)
+
+  SendGood(who, "Wskaz jajko lub zwierzaka z jajka");
+  var Targ := ObjTarget(who);
+
+  while(IsLoggedIn(who))
+    StandSkLayout(10,25,1);
+    GButton(  30, 34, 2117,2118,9998);
+    GTextLine(50, 30, 610,"Odswiez");
+
+    GButton(50, 73, 2117,2118,1);
+    GTextLine(70, 70,550, "Zakoncz wygrzewanie w jaszczurke");
+
+    GButton(50, 93, 2117,2118,2);
+    GTextLine(70, 90, 550, "Zakoncz wygrzewanie w wielkiego weza");
+
+    GButton(50, 113, 2117,2118,3);
+    GTextLine(70, 110, 550, "Zakoncz wygrzewanie w wywerne");
+
+    GButton(50, 133, 2117,2118,4);
+    GTextLine(70, 130, 550, "Zakoncz wygrzewanie w bazyliszka");
+
+    GButton(50, 153, 2117,2118,5);
+    GTextLine(70, 150, 550, "Ustaw nowego wlasciciela");
+
+    if(Targ.isa(POLCLASS_NPC))
+      GTextLine(70, 190, 550, "Karmienie "+CInt(GetObjProperty(Targ, "FeedCnt"))+"/14");
+      GTextLine(70, 210, 550, "Wytrzymalosc: "+(GetBaseSpecialAbility(Targ, NPC_ABLID_ENDURANCE) / 10));
+      if(Targ.npctemplate == "lizard")
+        var CzasDoPrzemiany := CInt(GetObjProperty(Targ, "FromEgg"));
+        GTextLine(70, 170, 550, "Czas do przemiany "+DescRealTime((604800 + CzasDoPrzemiany)-ReadGameClock()));
+      endif
+    elseif(Targ.isa(POLCLASS_ITEM))
+      var CzasWygrzewania := CInt(GetObjProperty(Targ, "WarmingTime"));
+      GTextLine(70, 170, 550, "Czas do konca wygrzewania: "+DescRealTime(604800 - CzasWygrzewania));
+    endif
+
+    var res := GSend(who).butid;
+
+    case(res)
+      0:
+        return;
+
+      1:
+        SetObjProperty(Targ, "WarmingTime", 604800);
+        SendGood(who, "Czas wygrzewania zmieniony.");
+        return;
+
+      2:
+        if(Targ.isa(POLCLASS_NPC))
+          SendBad(who, "Tej opcji mozna uzyc tylko na jajku.");
+          return;
+        endif
+        var x := Targ.x;
+        var y := Targ.y;
+        var z := Targ.z;
+        var r := Targ.realm;
+        var master := GetObjProperty(Targ, "WhoSerial");
+        DestroyItem(Targ);
+        var Npc := CreateNpc("giant_serpent",x,y,z,r,DEF_PARMS,0);
+        SetObjProperty(Npc,PROP_OWNER,master);
+        SetObjProperty(Npc,"FromEgg",ReadGameClock());
+        Tame(Npc, master);
+        return;
+
+      3:
+        if(Targ.isa(POLCLASS_NPC))
+          SendBad(who, "Tej opcji mozna uzyc tylko na jajku.");
+          return;
+        endif
+        var x := Targ.x;
+        var y := Targ.y;
+        var z := Targ.z;
+        var r := Targ.realm;
+        var master := GetObjProperty(Targ, "WhoSerial");
+        DestroyItem(Targ);
+        var Npc := CreateNpc("wyvern",x,y,z,r,DEF_PARMS,0);
+        SetObjProperty(Npc,PROP_OWNER,master);
+        SetObjProperty(Npc,"FromEgg",ReadGameClock());
+        Tame(Npc, master);
+        return;
+
+      4:
+        if(Targ.isa(POLCLASS_NPC))
+          SendBad(who, "Tej opcji mozna uzyc tylko na jajku.");
+          return;
+        endif
+        var x := Targ.x;
+        var y := Targ.y;
+        var z := Targ.z;
+        var r := Targ.realm;
+        var master := GetObjProperty(Targ, "WhoSerial");
+        DestroyItem(Targ);
+        var Npc := CreateNpc("bazyliszek",x,y,z,r,DEF_PARMS,0);
+        SetObjProperty(Npc,PROP_OWNER,master);
+        SetObjProperty(Npc,"FromEgg",ReadGameClock());
+        Tame(Npc, master);
+        return;
+
+      5:
+        var Npc := Targ;
+        SendGood(who, "Wskaz nowego wlasciciela");
+        Targ := ObjTarget(who);
+        SetObjProperty(Npc,PROP_OWNER,Targ.serial);
+        SendGood(who, "Nowym wlascicielem wskazanego celu jest: "+Targ.name);
+        return;
+    endcase
+  endwhile
+
+endprogram
+
+//-----------------------------------------------------------------------------

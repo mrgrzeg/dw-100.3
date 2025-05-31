@@ -1,0 +1,42 @@
+//-----------------------------------------------------------------------------
+
+include "include/clock";
+include "include/packets";
+
+include "../pkg/warcasts/warcasts";
+include "../pkg/systems/weather/weather";
+
+//-----------------------------------------------------------------------------
+
+const PD_WCID                := 41;
+
+//-----------------------------------------------------------------------------
+
+program PdLightRay(Parms)
+
+  WarCast(Parms, PD_WCID, 0);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, Cast)
+
+  __ParamUnused(Cast);
+  PlaySoundEffect(Caster, SFX_SPELL_PROTECTION);
+  PlayObjectCenteredEffect(Caster, FX_BLESS_EFFECT, 7,7);
+
+  if(!CanSkillMod(Caster,SKILLID_PARRY))
+    Fizzle(caster,"Jestes juz pod wplywem czaru!");
+    return;
+  endif
+
+  var ModAmount     := CInt(GetEffectiveSkill(Caster, SKILLID_PALADINISM) / 13 + GetEffectiveSkill(Caster, SKILLID_ZEAL) / 13)+1;
+  var Duration      := CInt(GetWarCastDuration(Caster, WCT_PALADIN) / 2);
+
+  //DoMod(Caster, MOD_AR, ModAmount, Duration);
+  DoSkillMod(Caster, SKILLID_PARRY, ModAmount, Duration);
+
+endfunction
+
+//--------------------------------------------------------------------------------

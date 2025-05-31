@@ -1,0 +1,43 @@
+//-----------------------------------------------------------------------------
+
+include "include/staff";
+include "include/gumps";
+include "include/names";
+include "include/mobile/npcs/name";
+
+//-----------------------------------------------------------------------------
+
+program OnlineCmdRefresh(who)
+
+  SetObjProperty(who, "OnlineCmdRefreshPid", GetPid());
+  var RefreshTime := ReadGameClock() + 60;
+  var Res,ScriptPid;
+ 
+  while(IsLoggedIn(who)) //tworzymy pętle odświerzającą
+    if(GWaitForResponse(who))
+      Res := GGetResult().butid;
+      if(!Res)
+        break;
+      endif
+    endif
+    if(!GetObjProperty(who, "OnlineCmdRefreshPid"))
+      break;
+    endif
+    if(RefreshTime < ReadGameClock())
+      var Pid := GetObjProperty(who, "OnlinePid"); //używamy wcześniej zapisany pid
+      if(!GetProcess(Pid))
+        Pid := ScriptPid;
+      endif
+      var Result := CloseGumpEx(who, Pid);
+      RefreshTime := ReadGameClock() + 60;
+      var ssRes := start_script(":character:onlinecmd", who);
+      ScriptPid := ssRes.pid;
+    endif
+    Sleep(1);
+  endwhile
+
+  EraseObjProperty(who, "OnlineCmdRefreshPid");
+
+endprogram
+
+//-----------------------------------------------------------------------------

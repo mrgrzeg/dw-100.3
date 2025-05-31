@@ -1,0 +1,71 @@
+//-----------------------------------------------------------------------------
+
+include "include/key";
+include "include/checks/objchecks";
+include "include/move";
+include ":baseitems:baseitems";
+
+//-----------------------------------------------------------------------------
+
+var _ItemsCreated := array;
+var _BaseItemNr := array;
+
+//-----------------------------------------------------------------------------
+
+program OnCreateScript(item)
+
+  var Element := ReadConfigFile(":carpentry:deeds")[0xB006];
+  var MainOT := SplitWords(Element.ObjType_N);
+  var Loc := GetLocStruct(item);  
+  var MainMods := SplitWords(Element.Mods_N);
+  var i := 1;
+
+  foreach ObjType in MainOT
+    if(!AddItemToArray(Loc.x+CInt(MainMods[i]),Loc.y+CInt(MainMods[i+1]),Loc.z+CInt(MainMods[i+2]),ObjType, item))
+      DestroyCreated();
+      return 0;
+    endif
+    i := i + 3;
+  endforeach
+
+  var Serials := array{};
+  foreach itm in _ItemsCreated
+    Serials.append(itm.serial);
+  endforeach
+
+  SetObjProperty(item, "PentagramItems", Serials);
+  SetObjProperty(item, "PentagramItemsBiNr", _BaseItemNr);
+  item.movable := 0;
+  
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function AddItemToArray(x, y, z, ObjType, item)
+
+  var NewItem := CreateItemAtLoc(6107,1187,0,CInt(ObjType),1);
+
+  if(!MoveObject(NewItem,CInt(x),CInt(y)+3,CInt(z),item.realm,MOVEITEM_FORCELOCATION | MOVEITEM_IGNOREMOVABLE))
+    DestroyItem(NewItem);
+  endif
+
+  NewItem.movable   := 0;
+  NewItem.invisible := 0;
+  _ItemsCreated.append(NewItem);
+  _BaseItemNr.append(AddBaseItem(ObjType, NewItem.x, NewItem.y, NewItem.z, NewItem.realm, 0, "PentagramArenyPvm"));
+  return NewItem;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function DestroyCreated()
+
+  foreach Item in _ItemsCreated
+    DestroyItem(Item);
+  endforeach
+  return 1;
+
+endfunction
+
+//-----------------------------------------------------------------------------

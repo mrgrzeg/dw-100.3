@@ -1,0 +1,130 @@
+//-----------------------------------------------------------------------------
+
+include "include/checks/objchecks";
+include "include/objtypes/magic";
+include ":magic:magicbag";
+include "include/gumps";
+include "include/start";
+include ":magic:magicatt";
+include ":character:name_check";
+include ":subclassbag:common";
+
+//-----------------------------------------------------------------------------
+
+program SubClassBag(who, bag)
+
+  if(!StandardItemCheck(who,bag,NO_COMBAT_CHECK))
+    return;
+  endif
+
+  if(ExPid(GetObjProperty(bag, "#ViewDrBag")))
+    SendSysMessage(who, "Ten worek ktos juz przeglada...", FONT_NORMAL, COLOR_RED);
+    return;
+  endif
+
+  Detach();
+  NoLongerBusy(who);
+  SetObjProperty(bag, "#ViewDrBag", GetPid());
+  SendViewContainer(who, bag);
+
+  while(IsLoggedIn(who) and bag)
+    BuildGump(who, bag);
+    var Res := GSend(who)[0];
+    if(!Res)
+      break;
+    endif
+
+    if(Res == 9999)
+      AddAllRegs(who,bag);
+    elseif(Res == 1)
+      BuildGump(who, bag);
+    endif
+  endwhile
+  
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function BuildGump(who, bag)
+
+  var StartPosX := 480;
+  var StartPosY := 60;
+  var Padding := 30;
+
+  GInit();
+  GPage();
+  GNoDispose();
+  GResPic(StartPosX,StartPosY,3500,330,300);
+  var TitlePosX := GCenterText(330, FixName(bag.name));
+  GTextLine(StartPosX+TitlePosX-10,80,94,FixName(bag.name)); //tytul
+  
+  if(who.cmdlevel or GetObjProperty(who, "CanCreateItems"))
+    GButton(StartPosX+155,314,2462,2461,9999); //tworzy w worku po 200 kazdego skladnika
+  endif
+  GTextLine(StartPosX+70+Padding,310,94,"Odswiez");
+  GButton(StartPosX+55+Padding,314,2103,2104,1); //odswiez
+
+  GAddPageData(StartPosX+50,288,5603,5607,StartPosX+260,288,5601,5605);
+
+  var RegObjtypesDict := GetDictOfOwnedRegs(who, bag);
+
+  foreach objtype in (RegObjtypesDict.keys())
+    GCheckNextPage(8);
+    GTextLine(StartPosX+50+Padding,110+(GNPCount()*25),0,FixName(GetDescForItem(objtype)));
+    GTextLine(StartPosX+190+Padding,110+(GNPCount()*25),0,RegObjtypesDict[objtype]);
+  endforeach
+  
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function AddAllRegs(who, bag)
+
+  foreach objtype in GetSubClassReagentsList(who, bag)
+    CreateItemInContainer( bag, objtype, 200 );
+  endforeach
+
+  SendSysMessage(who, "Wszystkie skladniki zostaly dodane.", FONT_NORMAL, COLOR_BLUE);
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function GetListOfItems(bag)
+
+  var ItemsArr := array;
+  foreach item in EnumerateItemsInContainer(bag)
+    ItemsArr.append(item);
+  endforeach
+
+  return ItemsArr;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function GetDictOfOwnedRegs(who, bag)
+
+  var SubClassRegsArr := GetSubClassReagentsList(who, bag);
+  var BagRegsArr := GetListOfItems(bag);
+  var OwnedRegs  := dictionary;
+
+  foreach objtype in SubClassRegsArr
+    OwnedRegs[objtype] := 0;
+  endforeach
+
+  foreach objtype in SubClassRegsArr
+    foreach item in BagRegsArr
+      if(item.objtype == objtype)
+        if(OwnedRegs[objtype])
+          OwnedRegs[objtype] += item.amount;
+        else
+          OwnedRegs[objtype] := item.amount;
+        endif
+      endif
+    endforeach
+  endforeach
+
+  return OwnedRegs;
+
+endfunction

@@ -1,0 +1,33 @@
+include "include/items";
+include "include/move";
+include "include/events";
+include "include/client/effects";
+include "include/items/temp_storage";
+include "include/mobile/npcs/attack";
+include "include/mobile/npcs/specs";
+include "include/mobile/npcs/properties";
+
+//-----------------------------------------------------------------------------
+
+program TerrorNpcControl(SummoningNpc)
+
+  var NpcArr;
+  SetObjProperty(SummoningNpc, "TerrorNpcControlPid", GetPid());
+
+  while(SummoningNpc)
+    if(SummoningNpc)
+      NpcArr := GetObjProperty(SummoningNpc, "SummonedNpcArr");
+    endif
+    sleep(5);
+  endwhile
+
+  foreach serial in NpcArr
+    var Npc := FindNpcBySerial(serial);
+    if(Npc)
+      KillNPC(Npc, 1, SummoningNpc);
+    endif
+  endforeach
+
+endprogram
+
+//-----------------------------------------------------------------------------

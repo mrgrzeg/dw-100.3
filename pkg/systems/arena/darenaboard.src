@@ -1,0 +1,24 @@
+//-----------------------------------------------------------------------------
+
+include "include/key";
+include "include/checks/objchecks";
+include "include/move";
+include ":baseitems:baseitems";
+
+//-----------------------------------------------------------------------------
+
+program OnCreateScript(item)
+
+  var ItemsCreated := GetObjProperty(item, "PentagramItems");
+  var BaseItemNr := GetObjProperty(item, "PentagramItemsBiNr");
+
+  if(IsArray(ItemsCreated))
+    foreach Nr in BaseItemNr
+      DeleteBaseItem(Nr);
+    endforeach
+    foreach idx in ItemsCreated
+      DestroyItem(FindItemBySerial(idx));
+    endforeach
+  endif
+  
+endprogram

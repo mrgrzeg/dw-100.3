@@ -1,0 +1,53 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+include "include/attack";
+include "include/mobile/npcs/specs";
+//-----------------------------------------------------------------------------
+
+const BR_WCID                := 145;
+
+//-----------------------------------------------------------------------------
+
+program BrBarbShawl(Parms)
+
+  WarCast(Parms, BR_WCID, 0, TRGT_MOB, TRGO_HARMFUL);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  var Dmg := CInt(GetEffectiveSkill(Caster, SKILLID_BARBARIAN) / 10 + GetEffectiveSkill(Caster, SKILLID_TACTICS) / 10)+5;
+  PlaySoundEffect(Caster, SFX_SPELL_CURSE);
+  PlayPcMovEffect(Caster, CastOn, FX_HEAL_EFFECT, 999, 0x5, 0x5, 1, 1);
+  DealDamage(CastOn, Dmg, Caster);
+  GainWarcastPoints(Caster, CastOn, BR_WCID, WCGAIN_OFFENSIVE);
+  
+  if(CastOn.isa(POLCLASS_NPC) and CastOn.npctemplate in {"abysslord", "balron"})
+    var BreakCnt := GetObjProperty(CastOn, "#SpecPerf_"+NSPEC_ABYSSFORCE);
+    var Res := BreakNpcSpecial(CastOn, NSPEC_ABYSSFORCE);
+
+    if(BreakCnt == 2)
+      Res := BreakNpcSpecial(CastOn, NSPEC_ABYSSFORCE, 2); //dzieki temu wystarczy 5 trafien zamiast 6
+    endif
+    if(Res > 0)
+      SendSysMessage(Caster, "Przelamal"+ggm(Caster,3)+" koncetracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_WHITE);
+    elseif(Res < 0)
+      SendSysMessage(Caster, "Prawie przelamal"+ggm(Caster,3)+" koncentracje "+GetName(CastOn)+"!", FONT_NORMAL, COLOR_ORANGE);
+    endif
+
+    var MindControl := BreakNpcSpecial(CastOn, NSPEC_MINDCONTROL, DMG_BREAK_MINDCONTROL);
+    if(MindControl > 0)
+      SendSysMessage(Caster, "Przerwal"+ggm(Caster,3)+" kontrole umyslu!", FONT_NORMAL, COLOR_WHITE);
+    elseif(MindControl < 0)
+      SendSysMessage(Caster, "Prawie przerwal"+ggm(Caster,3)+" kontrole umyslu!", FONT_NORMAL, COLOR_ORANGE);
+    endif
+  endif
+  return 1;
+
+endfunction
+
+//--------------------------------------------------------------------------------

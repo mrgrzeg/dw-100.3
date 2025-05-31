@@ -1,0 +1,95 @@
+use uo;
+use os;
+
+//-----------------------------------------------------------------------
+
+include "include/checks/stdchecks";
+include ":banking:common";
+include ":crafting:mat_groups";
+include "include/move";
+
+//-----------------------------------------------------------------------
+
+//var CPROP_MOVESCRIPT_PID := "#movescriptpid";
+
+//-----------------------------------------------------------------------
+
+var DELAY := 60;
+var Player;
+
+//-----------------------------------------------------------------------
+
+program movetobank(param)
+
+  Player := param[1];
+  var Cont := param[2];
+  var TargetCont := FindItemBySerial(CInt(GetObjProperty(Cont, "StonesPackSerial")));
+
+  if(!Player or !Cont)
+    return;
+  endif
+
+  var Bank := FindBankBox(Player);
+
+  if(!TargetCont or GetTopCont(TargetCont).objtype != 0x966F)
+    TargetCont := GetStonesPackSerial(Bank);
+    if(!TargetCont)
+      SendBad(Player, "Nie masz w skrzyni bankowej pojemnika na kamienie szlachetne.");
+      MoveTo(Cont, Player.backpack);
+      return;
+    endif
+    SetObjProperty(Cont, "StonesPackSerial", TargetCont.serial);
+  endif
+
+  SetScriptController( player );
+  //SetObjProperty(Cont,CPROP_MOVESCRIPT_PID, GetPid());
+
+  if(Player.dead)
+    MoveTo(Cont, Player.getcorpse());
+    SendSysMessage(Player, "Przeniesiono przedmioty do zwlok.", FONT_NORMAL, COLOR_RED);
+    return;
+  elseif(!Cont)
+    return;
+  //elseif(GetObjProperty(Cont,CPROP_MOVESCRIPT_PID) != GetPid())
+    //return;
+  endif
+
+  MoveTo(Cont, TargetCont);
+  
+endprogram
+
+//-----------------------------------------------------------------------
+
+function MoveTo(FromCont, ToCont)
+
+  if(!ToCont.isa(POLCLASS_CONTAINER))
+    return;
+  endif
+
+  foreach item in EnumerateItemsInContainer(FromCont,ENUMERATE_ROOT_ONLY)
+    if(MoveToCont(item, ToCont, MOVECONT_JOIN_STACKS))
+      if(ToCont.isa(POLCLASS_CORPSE))
+        SendSysMessage(Player, "Przeniesiono przedmioty do zwlok.", FONT_NORMAL, COLOR_BLUE);
+      elseif(ToCont.serial != Player.backpack.serial)
+        SendSysMessage(Player, "Przeniesiono przedmioty do banku.", FONT_NORMAL, COLOR_BLUE);
+      endif
+    endif
+  endforeach
+
+endfunction
+
+//-----------------------------------------------------------------------
+
+function GetStonesPackSerial(Bank)
+
+  foreach cont in EnumerateItemsInContainer(Bank,ENUMERATE_ROOT_ONLY)
+    if(cont.isa(POLCLASS_CONTAINER))
+      foreach item in EnumerateItemsInContainer(cont,ENUMERATE_ROOT_ONLY)
+        if(item.objtype in GetGemsObjTypes())
+          return cont;
+        endif
+      endforeach
+    endif
+  endforeach
+
+endfunction

@@ -1,0 +1,12 @@
+use uo;
+//-----------------------------------------------------------------------------
+
+program eggsetwho(who, item)
+
+  if(!GetObjProperty(item, "WhoSerial"))
+    SetObjProperty(item, "WhoSerial", who.serial);
+  endif
+  
+endprogram
+
+//-----------------------------------------------------------------------------

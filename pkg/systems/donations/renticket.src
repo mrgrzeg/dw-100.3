@@ -1,0 +1,22 @@
+use uo;
+//-----------------------------------------------------------------------------
+
+include "include/client/fonts";
+include ":character:checks";
+
+//-----------------------------------------------------------------------------
+
+program SetRentTicketNo(who, item)
+  
+  if(IsAdmin(who))
+    var text := SendTextEntryGump(who,"Wpisany tekst bedzie nazwa biletu",TE_CANCEL_ENABLE);
+    if(!text)
+      SendSysMessage(who,"Anulowano.",FONT_NORMAL,COLOR_RED);
+      return;
+    endif
+    SetName(item, text);
+  endif
+  
+endprogram
+
+//-----------------------------------------------------------------------------

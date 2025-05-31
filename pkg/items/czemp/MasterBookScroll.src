@@ -1,0 +1,114 @@
+use uo;
+use os;
+use util;
+
+include "include/client/fonts";
+include "include/gumpboxes";
+
+program useteleportScroll(who, theScroll)
+
+    if(GetAmount(theScroll) > 3)
+	if(!YesNo(who, "Uzywasz wielu zwojow. Na pewno dodac je wszystkie do ksiegi?"))
+	    return;
+	endif
+    endif
+
+    if(who.frozen)
+        SendSysMessage(who, "Anulowano.", FONT_NORMAL, RED_COLOR);
+        return;
+    endif
+    
+    if(!theScroll.movable)
+	SendSysMessage(who, "Anulowano.", FONT_NORMAL, RED_COLOR);
+	return;
+    endif
+    
+    SendSysMessage(who, "Wskaz ksiege, ktora chcesz naladowac:", FONT_NORMAL, COLOR_BLUE);
+    
+    var Targ := Target(who);
+    
+    var sAmount := GetAmount(theScroll);
+    
+    if(Targ.objtype != 0x10648)
+        SendSysMessage(who, "To nie ksiega.", FONT_NORMAL, RED_COLOR);
+        return;
+    else
+     if(theScroll.objtype==0x10650)
+        if(DestroyItem(theScroll))
+           SetObjProperty(Targ, "Charges1", CInt(GetObjProperty(Targ, "Charges1"))+sAmount);
+           endif
+           
+           
+           
+           
+            case(RandomInt(3+1))
+                1: PrintTextAbove(Targ, "*sila piorunow*");
+                2: PrintTextAbove(Targ, "*moc portali*");
+                3: PrintTextAbove(Targ, "*ksiega lsni zlotym blaskiem*");
+            endcase
+        endif
+        
+        
+        if(theScroll.objtype==0x10651)
+        if(DestroyItem(theScroll))
+           SetObjProperty(Targ, "Charges2", CInt(GetObjProperty(Targ, "Charges2"))+sAmount);
+           endif
+           
+           
+           
+           
+            case(RandomInt(3+1))
+                1: PrintTextAbove(Targ, "*sila piorunow*");
+                2: PrintTextAbove(Targ, "*moc portali*");
+                3: PrintTextAbove(Targ, "*ksiega lsni zlotym blaskiem*");
+            endcase
+        endif
+          if(theScroll.objtype==0x10652)
+        if(DestroyItem(theScroll))
+           SetObjProperty(Targ, "Charges3", CInt(GetObjProperty(Targ, "Charges3"))+sAmount);
+           endif
+           
+           
+           
+           
+            case(RandomInt(3+1))
+                1: PrintTextAbove(Targ, "*sila piorunow*");
+                2: PrintTextAbove(Targ, "*moc portali*");
+                3: PrintTextAbove(Targ, "*ksiega lsni zlotym blaskiem*");
+            endcase
+        endif
+        
+             if(theScroll.objtype==0x10653)
+        if(DestroyItem(theScroll))
+           SetObjProperty(Targ, "Charges4", CInt(GetObjProperty(Targ, "Charges4"))+sAmount);
+           endif
+           
+           
+           
+           
+            case(RandomInt(3+1))
+                1: PrintTextAbove(Targ, "*sila piorunow*");
+                2: PrintTextAbove(Targ, "*moc portali*");
+                3: PrintTextAbove(Targ, "*ksiega lsni zlotym blaskiem*");
+            endcase
+        endif
+               if(theScroll.objtype==0x10654)
+        if(DestroyItem(theScroll))
+           SetObjProperty(Targ, "Charges5", CInt(GetObjProperty(Targ, "Charges5"))+sAmount);
+           endif
+           
+           
+           
+           
+            case(RandomInt(3+1))
+                1: PrintTextAbove(Targ, "*sila piorunow*");
+                2: PrintTextAbove(Targ, "*moc portali*");
+                3: PrintTextAbove(Targ, "*ksiega lsni zlotym blaskiem*");
+            endcase
+        endif
+        
+        
+    endif
+    
+endprogram
+

@@ -1,0 +1,44 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+
+//-----------------------------------------------------------------------------
+
+const PD_WCID                := 34;
+
+//-----------------------------------------------------------------------------
+
+program PdEndurance(Parms)
+
+  WarCast(Parms, PD_WCID, 0);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  __ParamUnused(CastOn);
+  
+  var VpSkill  := GetEffectiveSkill(Caster,SKILLID_PALADINISM);
+  var SpSkill  := GetEffectiveSkill(Caster,SKILLID_ZEAL);
+  var Duration := Max(90, CInt(VpSkill + (SpSkill / 2)) * 15) + RandomInt(10);
+  var bDmg     := Max(5, CInt((VpSkill) + (SpSkill / 2) + RandomInt(10)));
+  
+  
+  PlaySoundEffect(Caster,SFX_SPELL_MANA_DRAIN);
+  PlayPcStEffect( Caster.x, Caster.y, Caster.z, Caster.realm, FX_SPARK_EFFECT, 85, 0x10, 0x10, 2);
+  
+  if(CanMod(Caster, MOD_MANA_DMG))
+    GainWarcastPoints(Caster, Caster, PD_WCID, WCGAIN_NORMAL);
+  endif
+
+  //UndoMod(Caster, MOD_LIGHT_DMG);
+  DoMod(Caster, MOD_MANA_DMG, bDmg, Duration);
+  
+  return 1;
+
+endfunction
+
+//--------------------------------------------------------------------------------

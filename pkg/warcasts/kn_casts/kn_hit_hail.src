@@ -1,0 +1,40 @@
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+include "include/client/fonts";
+include "include/client/sounds";
+include "include/client/effects";
+include "../pkg/systems/combat/combat";
+include "include/attributes/vitals";
+include "include/finding";
+include "include/clock";
+
+// ID czaru
+const KN_WCID := 124;
+
+//-----------------------------------------------------------------------------
+// Uruchomienie czaru (np. z menu gracza)
+program KnHitHail(Parms)
+  WarCast(Parms, KN_WCID, 0, TRGT_NONE, TRGO_NONE);
+endprogram
+
+
+//-----------------------------------------------------------------------------
+// Czar nakładany na broń
+function CastAction(Caster, CastOn)
+  var SkKensai := GetEffectiveSkill(Caster, SKILLID_KENSAI);
+  var SkTact := GetEffectiveSkill(Caster, SKILLID_TACTICS);
+  var totalSkill := SkKensai + SkTact;
+
+  var duration := CInt((totalSkill / 200.0) * 120); // do 2 minut
+  if (duration < 30)
+    duration := 30;
+  endif
+
+  var expireTime := ReadGameClock() + duration;
+  SetObjProperty(Caster, "#KnHitHailExpire", expireTime);
+
+  SendSysMessage(Caster, "Czar na broni aktywny przez " + duration + " sekund.", FONT_NORMAL, COLOR_BLUE);
+  PrintTextAbove(Caster, "*Twoja broń zostaje naładowana zaklęciem*", FONT_NORMAL, COLOR_ORANGE);
+  PlayPcEffect(Caster, FX_BLESS_EFFECT, 1151, 0xF, 0x8);
+  return 1;
+endfunction

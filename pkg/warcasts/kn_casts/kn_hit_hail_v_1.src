@@ -1,0 +1,84 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+include "include/client/fonts";
+include "include/client/sounds";
+include "include/client/effects";
+include "../pkg/systems/combat/combat";
+include "include/attributes/vitals";
+include "include/finding";
+
+//-----------------------------------------------------------------------------
+
+const KN_WCID := 124;
+
+//-----------------------------------------------------------------------------
+
+program KnHitHail(Parms)
+  WarCast(Parms, KN_WCID, 0, TRGT_MOB, TRGO_HARMFUL);
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  if (Reflected(CastOn, Caster))
+    CastOn := Caster;
+  endif
+
+  if (!CastOn.isA(POLCLASS_MOBILE))
+    return;
+  endif
+
+  var SkKensai := GetEffectiveSkill(Caster, SKILLID_KENSAI);
+  var SkTact := GetEffectiveSkill(Caster, SKILLID_TACTICS);
+  var totalSkill := SkKensai + SkTact;
+
+  var baseDrain := CInt(totalSkill); // np. 200 = 200 many
+  var currentMana := GetMana(CastOn);
+  var actualDrain := Min(baseDrain, currentMana); // nie może przekroczyć aktualnej many
+
+  DealManaDamage(CastOn, actualDrain, Caster);
+
+  // 🔹 Komunikat: ile many wyssano
+  PrintTextAbove(CastOn, "*Traci " + actualDrain + " many*", FONT_NORMAL, COLOR_BLUE);
+  PlaySoundEffect(Caster, SFX_SPELL_MANA_VAMPIRE);
+  PlayObjectCenteredEffect(CastOn, FX_GLOW, 7, 0x10);
+
+  // 🔍 Znajdź graczy w promieniu 8 pól od rzucającego
+  var players := ListMobilesNearLocation(Caster.x, Caster.y, Caster.z, 8, Caster.realm);
+  var valid := 0;
+  foreach p in players
+    if (IsPlayer(p) && !p.dead)
+      valid := valid + 1;
+    endif
+  endforeach
+
+  // 🔁 Rozdziel manę i wyślij komunikaty
+  if (valid > 0 && actualDrain > 0)
+    var perPlayer := actualDrain / valid;
+    foreach p in players
+      if (IsPlayer(p) && !p.dead)
+        var mana := GetMana(p) + perPlayer;
+        if (mana > GetMaxMana(p))
+          mana := GetMaxMana(p);
+        endif
+        SetMana(p, mana);
+        PrintTextAbove(p, "*+ " + perPlayer + " many od " + Caster.name + "*", FONT_NORMAL, COLOR_GREEN);
+        SendSysMessage(p, "Otrzymujesz " + perPlayer + " many z wysysania!", FONT_NORMAL, COLOR_GREEN);
+      endif
+    endforeach
+  endif
+
+  // 🔁 Efekty co 2 sekundy przez 20 sekund
+  var tick := 10;
+  var perTick := CInt(actualDrain / 10);
+  while (tick > 0 && CastOn && !CastOn.dead)
+    PrintTextAbove(CastOn, "*Traci " + perTick + " many*", FONT_NORMAL, COLOR_BLUE);
+    PlayPcEffect(CastOn, FX_SPARK_EFFECT, 85, 0x10, 0x10, 2);
+    sleep(2);
+    tick := tick - 1;
+  endwhile
+
+endfunction

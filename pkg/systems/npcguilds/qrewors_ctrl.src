@@ -1,0 +1,57 @@
+//--------------------------------------------------------------------------------
+
+include "include/attributes/main";
+
+//--------------------------------------------------------------------------------
+
+program QuestRewordsControll(Parms)
+
+  if(!FillGlobCtrl(Parms))
+    return 0;
+  endif
+
+  var ItemsList, Item;
+
+  while(1)
+    ItemsList := GetGlobalProperty("QrewordsItemsSerial");
+
+    foreach serial in ItemsList
+      Item := FindItemBySerial(serial);
+      
+      if(Item)
+        var ExpireTime := GetObjProperty(Item, "QrewordTime");
+
+        if((ExpireTime - 3600) < PolCore().systime)
+          var ItemOwner := CInt(GetObjProperty(Item, PROP_BOUND));
+          var ItemMsg := CInt(GetObjProperty(Item, "QrewordMsg"));
+
+          if(ItemOwner and !ItemMsg)
+            ItemOwner := FindPlayerBySerial(ItemOwner);
+            SendSysMessage(ItemOwner, Item.desc+" niebawem sie rozpadnie.", FONT_NORMAL, COLOR_BLUE);
+            SetObjProperty(Item, "QrewordMsg", 1);
+          endif
+        endif
+        if(CInt(ExpireTime) > 0)
+          if(CInt(ExpireTime) < PolCore().systime)
+            var ItemOwner := CInt(GetObjProperty(Item, PROP_BOUND));
+
+            if(ItemOwner)
+              ItemOwner := FindPlayerBySerial(ItemOwner);
+              SendSysMessage(ItemOwner, Item.desc+" rozpada sie.", FONT_NORMAL, COLOR_BLUE);
+            endif
+
+            DestroyItem(Item);
+            ItemsList.Erase(_serial_iter);
+            SetGlobalProperty("QrewordsItemsSerial", ItemsList);
+          endif
+        endif
+      endif
+    endforeach
+
+    sleep(60);
+    
+  endwhile
+
+endprogram
+
+//--------------------------------------------------------------------------------

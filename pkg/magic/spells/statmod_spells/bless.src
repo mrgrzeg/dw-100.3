@@ -1,0 +1,70 @@
+//-----------------------------------------------------------------------------
+
+include ":magic:magic";
+include ":glyphs:glyphs";
+
+//-----------------------------------------------------------------------------
+
+const SPELL_ID := 17;
+
+//-----------------------------------------------------------------------------
+
+program CastBless( nSpellParms )
+
+  SpellCast(nSpellParms, SPELL_ID, TRGT_MOB, TRGO_HELPFUL);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function SpellAction(Caster, CastOn)
+
+  if(IsPlayer(CastOn))
+    if(!CanGetMagicStatMod(CastOn))
+      Fizzle(Caster, "Czar nie daje efektu na tej osobie.");
+      return;
+    endif
+  endif
+
+  var ModAmount;
+  PlaySoundEffect(CastOn, SFX_SPELL_BLESS);
+  PlayObjectCenteredEffect( CastOn, FX_BLESS_EFFECT, 10,10);
+
+  if(Caster == CastOn)
+    ModAmount := GetIntModAmt( Caster );
+  else
+    ModAmount := GetIntModAmtOthers(Caster); //obszarowo
+  endif
+
+  var Duration  := CalcModDuration( Caster );
+  var mod := GetGlyphMod(CastOn, "WimprovedBless");
+
+  if(mod)
+	  ModAmount := ModAmount + mod;
+  endif
+
+  if(Caster == CastOn)
+    DoMod(CastOn, MOD_STR, ModAmount, Duration);
+    DoMod(CastOn, MOD_DEX, ModAmount, Duration);
+    DoMod(CastOn, MOD_INT, ModAmount, Duration);
+  else
+    foreach CastOn in ListMobilesNearLocation( CastOn.x, CastOn.y, CastOn.z, 15,CastOn.realm )
+      if(CheckLineOfSight(CastOn, Caster) and !CastOn.cmdlevel and CastOn != Caster)
+        if(CanMod(CastOn, MOD_STR))
+          DoMod(CastOn, MOD_STR, ModAmount, Duration);
+        endif
+        if(CanMod(CastOn, MOD_DEX))
+          DoMod(CastOn, MOD_DEX, ModAmount, Duration);
+        endif
+        if(CanMod(CastOn, MOD_INT))
+          DoMod(CastOn, MOD_INT, ModAmount, Duration);
+        endif
+      endif
+    endforeach
+  endif
+
+  GainSpellPoints(Caster, CastOn, MAGICGAIN_DEFENSIVE);
+
+endfunction
+
+//-----------------------------------------------------------------------------

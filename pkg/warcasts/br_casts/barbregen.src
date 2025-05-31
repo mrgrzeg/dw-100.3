@@ -1,0 +1,64 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+
+//-----------------------------------------------------------------------------
+
+const BR_WCID                := 142;
+
+//-----------------------------------------------------------------------------
+
+program BarbRegen(Caster)
+
+  var Duration := ReadGameClock() + 300;
+  var Time     := 120;
+  SendAddBuff(Caster, BFICON_EVILOMEN, Duration, CLITMOD_HP_REGEN, CLILOC_EMPTY, 0);
+  GainWarcastPoints(Caster, Caster, BR_WCID, WCGAIN_DEFENSIVE);
+  NoLongerBusy(Caster);
+  SetObjProperty(Caster, "#BarbRegen", GetPid());
+
+  var lx  := Caster.x;
+  var ly  := Caster.y;
+  var lRm := Caster.realm;
+  var Cn  := 0;
+
+  PlaySoundEffect(Caster, SFX_MEDITATION);
+
+  while(Duration > ReadGameClock() and IsLoggedIn(Caster))
+    var mount := GetEquipmentByLayer(Caster, LAYER_MOUNT);
+
+    if(lx != Caster.x or ly != Caster.y or lRm != Caster.realm)
+      if(GetBaseSkill(Caster, SKILLID_BARBARIAN) <= 100)
+        SendSysMessage(Caster,"Stracil"+ggm(Caster,3)+" koncentracje.", FONT_NORMAL, COLOR_RED);
+        break;
+      endif
+      if(GetBaseSkillBaseValue(Caster, SKILLID_BARBARIAN) > 1000 and GetBaseSkillBaseValue(Caster, SKILLID_BARBARIAN) <= 1050 and  GetObjProperty(mount, PROP_NPCTEMP) != "bucefal")
+        SendSysMessage(Caster,"Stracil"+ggm(Caster,3)+" koncentracje.", FONT_NORMAL, COLOR_RED);
+        break;
+      endif
+    endif
+
+    HealMobile(Caster, 1, Caster);
+    Cn  := Cn + 1;
+
+    if(Cn > 5)
+      HealStamina(Caster, 1, Caster);
+      Cn := 0;
+    endif
+
+    Sleepms(Time);
+
+  endwhile
+
+  SendDelBuff(Caster, BFICON_EVILOMEN);
+  EraseObjProperty(Caster, "#BarbRegen");
+  PlaySoundEffect(Caster, SFX_MEDIT_END);
+
+  if(GetHp(Caster) == GetMaxHp(Caster))
+    SendSysMessage(Caster, "Regeneracja oslabla.", FONT_NORMAL, COLOR_BLUE);
+  endif
+  
+endprogram
+
+//-----------------------------------------------------------------------------

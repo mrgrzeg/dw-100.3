@@ -1,0 +1,143 @@
+//-----------------------------------------------------------------------------
+
+include "include/msgs";
+include "include/gumpboxes";
+include ":banking:common";
+include ":character:name_check";
+include ":arena:arena";
+
+//-----------------------------------------------------------------------------
+
+program ArenaPvmBoard(who)
+
+  var Data := InitData();
+
+  while(IsLoggedIn(who))
+    BuildMainGump(who);
+    BuildNpcListGump(Data);
+
+    var GSendRes := GSend(who);
+
+    case(GSendRes.butid)
+      0:  return;
+
+      default:
+        if(GSendRes.butid > 100)
+          BuildHistoryGump(who, Data.MonsterToButtonID[GSendRes.butid]);
+        endif
+    endcase
+  endwhile
+  
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function BuildMainGump(who)
+
+  GInit(0, 0);
+  GMode(GMODE_NORMAL, GSMODE_PACKET);
+  GNoDispose();
+  GResPic(150, 100, 3600, 570, 600);
+  GGumpPic(100, 110, 10440);
+  GGumpPic(685, 110, 10441);
+  var TitlePosX := GCenterText(570, "Historia Walk Areny PvM");
+  GTextLine(TitlePosX+140, 120, 660, "Historia Walk Areny PvM");
+
+  //if(IsAdmin(who))
+  //  GTextLine(400, 160, 660, "Dla Admina:");
+  //  GTextLine(420, 180, 660, "Zakoncz walke");
+  //  GButton(400, 180, 2714,2715, 1);
+  //endif
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function BuildHistoryGump(who, NpcTemplate)
+
+  GInit(0, 0);
+  GMode(GMODE_NORMAL, GSMODE_PACKET);
+  GNoDispose();
+  GMultiHeaderInit();
+  GResPic(150, 100, 3600, 570, 400);
+  GGumpPic(100, 110, 10440);
+  GGumpPic(685, 110, 10441);
+  GPage();
+  GAddPageData(680, 180, 2650,2651, 680, 460, 2648,2647);
+  var TitlePosX := GCenterText(570, "Historia Walk Areny PvM");
+  GTextLine(TitlePosX+140, 120, 660, "Historia Walk Areny PvM");
+  GMultiPage();
+
+  var MonsterDict := GetConfigStringDictionary( ReadConfigFile(ARENA_CFG)["PvMMonsters"], "Monster" );
+  var ArenaPvmHistory := GetGlobalProperty("ArenaPvmHistory");
+
+  if(IsDict(ArenaPvmHistory))
+    ArenaPvmHistory := GetHistoryByTemplate(ArenaPvmHistory, NpcTemplate);
+    var FightTime := ArenaPvmHistory.keys();
+    FightTime.sort();
+
+    foreach time in FightTime
+      var WonLoose;
+      case(ArenaPvmHistory[time]["WhoWon"])
+        "Monster":  WonLoose := " przegral walke z ";
+        "Player":   WonLoose := " wygral walke z ";
+      endcase
+      GCheckNextPage(16);
+      GTextLine(180, 160 + (GNPCount()*20),50, "Czas walki: "+RealTime(time)+" sekund."); //CUnixTime
+      GCheckNextPage(16);
+      GTextLine(180, 155 + (GNPCount()*20),COLOR_WHITE, GetName(FindPlayerBySerial(ArenaPvmHistory[time]["Player"]))+""+WonLoose+""+MonsterDict[ ArenaPvmHistory[time]["Monster"] ]+", walka odbyla sie: "+CUnixTime(ArenaPvmHistory[time]["FightStart"]));
+    endforeach
+
+    var GSendRes := GSend(who);
+
+    while(IsLoggedIn(who))
+      if(!GSendRes.butid)
+        return;
+      endif
+    endwhile
+  endif
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function InitData()
+
+  var Data := struct;
+  Data.+MonsterToButtonID := dictionary;
+
+  return Data;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function BuildNpcListGump(byref Data)
+
+  var MonsterDict := GetConfigStringDictionary( ReadConfigFile(ARENA_CFG)["PvMMonsters"], "Monster" );
+  var MonsterArr := MonsterDict.Keys();
+
+  foreach NpcObjtype in MonsterArr
+    GButton(180, 140+(_NpcObjtype_iter*30), 2714,2715, 100+_NpcObjtype_iter);
+    GTextLine(200, 140+(_NpcObjtype_iter*30), 660, MonsterDict[NpcObjtype]);
+    Data.MonsterToButtonID[100+_NpcObjtype_iter] := NpcObjtype;
+  endforeach
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function GetHistoryByTemplate(ArenaPvmHistory, NpcTemplate)
+
+  var FightTime := ArenaPvmHistory.keys();
+  var ReturnDict := dictionary;
+
+  foreach time in FightTime
+    if(ArenaPvmHistory[time]["Monster"] == NpcTemplate)
+      ReturnDict[time] := ArenaPvmHistory[time];
+    endif
+  endforeach
+
+  return ReturnDict;
+
+endfunction

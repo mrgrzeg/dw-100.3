@@ -1,0 +1,87 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+include "include/client/fonts";
+include "include/client/sounds";
+include "include/client/effects";
+include "../pkg/systems/combat/combat";
+include "include/attributes/vitals";
+include "include/finding";
+
+//-----------------------------------------------------------------------------
+
+const KN_WCID := 124;
+
+//-----------------------------------------------------------------------------
+
+program KnHitHail(Parms)
+  WarCast(Parms, KN_WCID, 0, TRGT_MOB, TRGO_HARMFUL);
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  if (Reflected(CastOn, Caster))
+    CastOn := Caster;
+  endif
+
+  if (!CastOn.isA(POLCLASS_MOBILE))
+    return;
+  endif
+
+  var SkKensai := GetEffectiveSkill(Caster, SKILLID_KENSAI);
+  var SkTact := GetEffectiveSkill(Caster, SKILLID_TACTICS);
+  var totalSkill := SkKensai + SkTact;
+
+  var drainMin := 20; 
+  var drainMax := 25;
+
+  var ticks := 30; 
+  while (ticks > 0 && CastOn && !CastOn.dead)
+
+    var manaLost := drainMin + RandomInt(drainMax - drainMin + 1);
+    var currentMana := GetMana(CastOn);
+    if (manaLost > currentMana)
+      manaLost := currentMana;
+    endif
+
+    DealManaDamage(CastOn, manaLost, Caster);
+    PrintTextAbove(CastOn, "*Traci " + manaLost + " many*", FONT_NORMAL, COLOR_BLUE);
+    PlayPcEffect(CastOn, FX_SPARK_EFFECT, 85, 0x10, 0x10, 2);
+
+    
+    var maxMana := GetMaxMana(CastOn);
+    var manaPercent := (maxMana > 0) ? CInt((currentMana - manaLost) * 100 / maxMana) : 0;
+    PrintTextAbove(CastOn, "*Pozostalo " + manaPercent + "% many*", FONT_NORMAL, COLOR_ORANGE);
+
+   
+    var players := ListMobilesNearLocation(Caster.x, Caster.y, Caster.z, 8, Caster.realm);
+    var valid := 0;
+    foreach p in players
+      if (IsPlayer(p) && !p.dead)
+        valid := valid + 1;
+      endif
+    endforeach
+
+    if (valid > 0 && manaLost > 0)
+      var perPlayer := manaLost / valid;
+      foreach p in players
+        if (IsPlayer(p) && !p.dead)
+          var mana := GetMana(p) + perPlayer;
+          if (mana > GetMaxMana(p))
+            mana := GetMaxMana(p);
+          endif
+          SetMana(p, mana);
+          PrintTextAbove(p, "*+ " + perPlayer + " many od " + Caster.name + "*", FONT_NORMAL, COLOR_GREEN);
+          SendSysMessage(p, "Otrzymujesz " + perPlayer + " many z wysysania!", FONT_NORMAL, COLOR_GREEN);
+        endif
+      endforeach
+    endif
+
+    ticks := ticks - 1;
+    sleep(2);
+  endwhile
+
+endfunction

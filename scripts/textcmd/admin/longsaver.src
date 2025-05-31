@@ -1,0 +1,28 @@
+use uo;
+//-----------------------------------------------------------------------------
+
+include "include/msgs";
+
+//-----------------------------------------------------------------------------
+//komenda ta wlacza/wylacza czas do zapisu swiata ustawiony na 12h w pliku saver.src
+program SetLongSaverDealy(who, text)
+  
+  case(text)
+    "on":
+      SetGlobalProperty("LongMinsSaveDelayForTesting", 1);
+      SendGood(who, "12h do zapisu wlaczone.");
+
+    "off":
+      SetGlobalProperty("LongMinsSaveDelayForTesting", 0);
+      SendGood(who, "12h do zapisu wylaczone.");
+
+    "status":
+      SendGood(who, "Status: "+CInt(GetGlobalProperty("LongMinsSaveDelayForTesting")));
+
+    default: SendBad(who, "Dostepne parametry: .longsaver [on/off/status]");
+  
+  endcase
+  
+endprogram
+
+//-----------------------------------------------------------------------------

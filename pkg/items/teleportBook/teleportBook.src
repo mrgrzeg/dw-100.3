@@ -1,0 +1,166 @@
+use uo;
+use os;
+
+include "include/client/fonts";
+include "include/client/effects";
+include "include/gumps";
+include "include/portals";
+include "include/checks/locchecks";
+include "include/npcs";
+include "include/std";
+include "include/gumpboxes";
+include "include/move";
+include "include/calc";
+include ":magic:magic";
+
+var teleportsCfg := ReadConfigFile(":teleportBook:teleports");
+
+program use_teleportBook(who, theBook)
+
+    if(theBook.container != who.backpack)
+        SendSysMessage(who, "Ksiega musi byc w twoim plecaku.", FONT_NORMAL, COLOR_RED);
+        return;
+    endif
+	
+	  if(NoTeleportZone(who.x, who.y, who.z, who.realm,TCF_NOCHECK_DUNG|TCF_CHECK_CHAMP))
+    SendSysMessage(who, "Miejsce w ktorym sie znajdujesz nie pozwala Ci na przyzwanie portalu...");
+    return;
+  endif
+	
+	
+	/*if(who.realm != BRITA_REALM)
+		SendSysMessage(who, "W tym miejscu ksiega nie moze zostac uzyta", FONT_NORMAL, COLOR_RED);
+		return;
+	endif*/
+	
+	
+	
+	
+    
+    GInit(0, 0);
+
+    GGumpPic(20, 28, 510, 0); 
+    GButton(60, 80, 1210, 248, 11); // Luna
+    GButton(60, 100, 1210, 248, 12); // Umbra
+    GButton(60, 120, 1210, 248, 13); // Zento
+    GButton(60, 140, 1210, 248, 14); // Brytania
+    GButton(60, 160, 1210, 248, 15); // Tokuno
+    GButton(60, 180, 1210, 248, 16); //Kharak Hirin
+    GButton(60, 200, 1210, 248, 17); //Cov
+   //-------------------------------------------------------------
+   
+    GButton(250, 40, 1210, 248, 18); //Lakeshire
+    GButton(250, 60, 1210, 248, 19); //Montor
+    GButton(250, 80, 1210, 248, 20); //Papua
+	GButton(250, 100, 1210, 248, 21); //Occlo
+	GButton(250, 120, 1210, 248, 22); //Bravias
+	GButton(250, 140, 1210, 248, 23); //Delucia
+    GButton(250, 160, 1210, 248, 24); //Ishen
+	GButton(250, 180, 1210, 248, 25); //Skara Brae
+	GButton(250, 200, 1210, 248, 26); //Serpents Hold
+	GButton(250, 220, 1210, 248, 27); //Buccaneers Den
+	
+    //----------------------------------------------------------
+    GTextLine(90, 80, 0, "Luna");
+    GTextLine(90, 100, 0, "Umbra");
+    GTextLine(90, 120, 0, "Zento");
+    GTextLine(90, 140, 0, "Brytania");
+    GTextLine(90, 160, 0, "Tokuno");
+    GTextLine(90, 180, 0, "Kharak Hirin");
+    GTextLine(90, 200, 0, "Cov");
+   //-------------------------------------------
+    GTextLine(280, 40, 0, "Lakeshire");
+    GTextLine(280, 60, 0, "Montor");
+    GTextLine(280, 80, 0, "Papua");
+	GTextLine(280, 100, 0, "Occlo");
+	GTextLine(280, 120, 0, "Bravias");
+	GTextLine(280, 140, 0, "Delucia");
+	GTextLine(280, 160, 0, "Ishen");
+	GTextLine(280, 180, 0, "Skara Brae");
+	GTextLine(280, 200, 0, "Serpents Hold");
+	GTextLine(280, 220, 0, "Buccaneers Den");
+
+
+  //------------------------------------------------
+    
+    GButton(51, 35, 2152, 248, 0);
+    GTextLine(85, 41, 0, "Ilosc Ladunkow:");
+    
+    if(!GetObjProperty(theBook, "Charges"))
+        GTextLine(180, 41, 0, "Brak");
+        SetObjProperty(theBook, "Charges", 0);
+    else
+        GTextLine(180, 41, 0, CInt(GetObjProperty(theBook, "Charges")));
+    endif
+    
+    
+    var res := GSend(who);
+    
+    if(!res)
+        SendSysMessage(who, "Anulowano.", FONT_NORMAL, COLOR_RED);
+        return;
+    endif
+    
+    SendSysMessage(who, "Kliknieto w " + res[0]);
+    
+    var cityName := ParseCityName(res[0]);
+    
+    ParseBookTouch(who, theBook, cityName);
+    
+endprogram
+
+function ParseCityName(cityNumber)
+
+    case(cityNumber)
+	11: return "Luna";
+	12: return "Umbra";
+	13: return "Zento";
+	14: return "Brytania";
+	15: return "Tokuno";
+        16: return "Kharak Hirin";
+        17: return "Cov";
+        18: return "Lakeshire";
+        19: return "Montor";
+        20: return "Papua";
+		21: return "Occlo";
+		22: return "Bravias";
+		23: return "Delucia";
+		24: return "Ishen";
+		25: return "Skara Brae";
+		26: return "Serpents Hold";
+		27: return "Buccaneers Den";
+	
+	//--------------------------------------------------------
+	
+    default: return error;
+    endcase
+
+endfunction
+
+function ParseBookTouch(who, theBook, cityName)
+
+
+var coords := teleportsCfg[cityName];
+
+    if(!coords)
+        SendSysMessage(who, "Blad w ksiedze: " + cityName + " nie jest wpisane w plik .cfg", FONT_NORMAL, COLOR_RED);
+        return;
+    endif
+    
+    if(CInt(GetObjProperty(theBook, "Charges")) <= 0)
+        SendSysMessage(who, "Twoja ksiega nie ma ladunkow.", FONT_NORMAL, COLOR_RED);
+        return;
+    else
+    
+        SetObjProperty(theBook, "Charges", CInt(GetObjProperty(theBook, "Charges"))-1);
+        
+        CreateGateTravel(who.x, who.y, who.z, who.realm, coords.x, coords.y, coords.z, coords.realm);
+        
+    endif
+    
+endfunction
+    
+
+    
+
+    

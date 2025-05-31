@@ -1,0 +1,75 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+include "include/reputation/murderer";
+include "../pkg/systems/tourney/tourney";
+
+
+//-----------------------------------------------------------------------------
+
+const KN_WCID                := 125;
+
+//-----------------------------------------------------------------------------
+
+program KnRetort(Parms)
+
+  WarCast(Parms, KN_WCID, 0, TRGT_MOB, TRGO_HARMFUL);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+  __ParamUnused(CastOn);
+
+  if(IsInTourneyIsland(Caster.x, Caster.y))
+    Fizzle(Caster, "Czar prysl...");
+    return;
+  endif
+
+  Detach();
+
+  var SkKensai := GetEffectiveSkill(Caster, SKILLID_KENSAI);
+  var SkTact := GetEffectiveSkill(Caster, SKILLID_TACTICS);
+  var Range := SkKensai / 5;
+  var Dmg := CInt((SkKensai + SkTact) / 8);
+  var Num := CInt((SkKensai + SkTact) / 8);
+  var Count := 0;
+
+  GainWarcastPoints(Caster, Caster, KN_WCID, WCGAIN_DEFENSIVE);
+
+  foreach Mob in ListMobilesNearLocation(Caster.x, Caster.y, Caster.z, Range, Caster.realm)
+
+    if(!CanDamage(Caster, Mob, 0, Caster))
+      continue;
+    endif
+
+    if(Dispersed(Caster, Mob))
+      continue;
+    endif
+
+    var TargetMob := Mob;
+
+    if(Reflected(Mob, Caster))
+      TargetMob := Caster;
+    endif
+
+    PlaySoundEffect(TargetMob, SFX_SPELL_FIREBALL);
+    PlayMovingEff(Caster, TargetMob, FX_FIREBALL, 5, 1);
+
+    DoMagicDamage(TargetMob, Caster, Dmg, 5, 5);
+
+    sleepms(500);
+
+    Count := Count + 1;
+    if(Count >= Num || Count >= 5)
+      break;
+    endif
+
+  endforeach
+
+endfunction
+
+
+//--------------------------------------------------------------------------------

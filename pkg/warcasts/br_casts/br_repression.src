@@ -1,0 +1,42 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+
+//-----------------------------------------------------------------------------
+
+const BR_WCID                := 140;
+
+//-----------------------------------------------------------------------------
+
+program BrRepression(Parms)
+
+  WarCast(Parms, BR_WCID, 0, TRGT_NONE, TRGO_NONE);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  __ParamUnused(CastOn);
+
+  if(!CanSkillMod(Caster, SKILLID_PARRY))
+    WcFizzleId(Caster, "Jestes juz pod wplywem eliksiru!", BR_WCID);
+    return 0;
+  endif
+
+  var Duration  := CInt(GetWarCastDuration(Caster, WCT_BARBARIAN) / 2);
+  var ModAmount := CInt(GetEffectiveSkill(Caster, SKILLID_BARBARIAN) / 13 + GetEffectiveSkill(Caster, SKILLID_TACTICS) / 13)+1;
+
+  PlaySoundEffect(Caster, SFX_SPELL_PROTECTION);
+  PlayObjectCenteredEffect(Caster, FX_BLESS_EFFECT, 7,7);
+  DoSkillMod(Caster, SKILLID_PARRY, ModAmount, Duration);
+
+  GainWarcastPoints(Caster, Caster, BR_WCID, WCGAIN_DEFENSIVE);
+
+  return 1;
+
+endfunction
+
+//--------------------------------------------------------------------------------

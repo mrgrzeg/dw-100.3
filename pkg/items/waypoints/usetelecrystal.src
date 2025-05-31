@@ -1,0 +1,47 @@
+
+//-----------------------------------------------------------------------------
+
+include "include/checks/objchecks";
+include "include/items";
+include "include/buildings";
+
+//-----------------------------------------------------------------------------
+
+program UseCrystal(who, item)
+
+  if(IsMageBySkill(who))
+    SendSysMessage(who,"Nie potrafisz uzyc tego porzedmiotu.",FONT_NORMAL,COLOR_RED);
+    return;
+  endif
+
+  var TeleCrystal := GetObjProperty(who, "PersonalTeleCrysLoc");
+
+  if(!IsArray(TeleCrystal[1]) and TeleCrystal)
+    TeleCrystal := array{TeleCrystal};
+  elseif(!IsArray(TeleCrystal[1]) and !TeleCrystal)
+    TeleCrystal := array;
+  endif
+
+  var Loc := GetObjProperty(item, "Loc");
+
+  SendGood(who, "Podaj nazwe lokacji dla wladcy portali");
+  var LocName := SendTextEntryGump(who,"Podaj nazwe lokacji",TE_CANCEL_ENABLE);
+  if(!LocName)
+    SendSysMessage(who,"Anulowano.",FONT_NORMAL,COLOR_RED);
+    return;
+  endif
+
+  if(Len(LocName) > 20)
+    SendSysMessage(who,"Maksymalna dlugosc nazwy to 20 znakow.",FONT_NORMAL,COLOR_RED);
+    return;
+  endif
+
+  if(DestroyItem(item))
+    TeleCrystal.append(array(Loc[1], Loc[2], Loc[3], Loc[4], LocName));
+    SetObjProperty(who, "PersonalTeleCrysLoc", TeleCrystal);
+    UniSendGood(who, "Odkryl"+ggm(who,3)+" nowa lokalizacje "+LocName+"!", COLOR_WHITE);
+  endif
+
+endprogram
+
+//-----------------------------------------------------------------------------

@@ -1,0 +1,45 @@
+//-----------------------------------------------------------------------------
+
+include "../pkg/warcasts/warcasts";
+include "include/packets";
+
+//-----------------------------------------------------------------------------
+
+const BR_WCID                := 142;
+
+//-----------------------------------------------------------------------------
+
+program BrRegeneration(Parms)
+
+  WarCast(Parms, BR_WCID, 0, TRGT_NONE, TRGO_NONE);
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CastAction(Caster, CastOn)
+
+  __ParamUnused(CastOn);
+
+  if(GetObjProperty(Caster, "#BarbRegen"))
+    SendSysMessage(Caster, "Regeneracja juz dziala.", FONT_NORMAL, COLOR_BLUE);
+    PlaySoundEffect(Caster, SFX_MEDIT_END);
+    return 0;
+  endif
+
+  //var mount := GetEquipmentByLayer(Caster, LAYER_MOUNT);
+  //tylko w ruchu na bucefale ma się leczyć, a bez może tylko stojąc
+  //if(mount) //musi miec 100.1 barbarzynczy rzeby sie leczyc na bucefale w ruchu
+  //  if(GetObjProperty(mount, PROP_NPCTEMP) != "bucefal")
+  //    SendBad(Caster, "Nie potrafisz sie regenerowac na tym wierzchowcu.");
+  //    return 0;
+  //  endif
+  //endif
+
+  start_script(":br_casts:barbregen", Caster);
+
+  return 1;
+
+endfunction
+
+//--------------------------------------------------------------------------------

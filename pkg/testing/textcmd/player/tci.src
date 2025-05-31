@@ -1,0 +1,19 @@
+use uo;
+//-----------------------------------------------------------------------------
+
+include "include/cmds/cmds";
+
+//-----------------------------------------------------------------------------
+
+program CloneItem(who)
+  
+  var Item := ObjTarget(who);
+
+  if(Item.objtype != UOBJ_SRUNE and Item.objtype != UOBJ_TELE)
+    DuplicateItemToContainer(item,__IfElse(item.container, item.container, who.backpack),who);
+    SendSysMessage(who,"Zduplikowal"+ggm(who,3)+" przedmiot "+item.desc+".",FONT_NORMAL,COLOR_GREEN);
+  endif
+  
+endprogram
+
+//-----------------------------------------------------------------------------

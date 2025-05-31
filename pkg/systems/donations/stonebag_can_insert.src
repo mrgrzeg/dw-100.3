@@ -1,0 +1,28 @@
+use cfgfile;
+
+//-----------------------------------------------------------------------
+
+include "include/objtypes/misc";
+include "include/checks/stdchecks";
+include ":banking:common";
+include "include/misc";
+include ":crafting:mat_groups";
+
+//-----------------------------------------------------------------------
+
+program StoneBag_can_insert(character, container, movetype, inserttype, adding_item, existing_stack, amount_to_add)
+  
+  __paramunused(character);
+  __paramunused(container);
+  __paramunused(movetype);
+  __paramunused(inserttype);
+  __paramunused(existing_stack);
+  __paramunused(amount_to_add);
+  
+  if(!(adding_item.objtype in GetGemsObjTypes()))
+    return 0;
+  else
+    return 1;
+  endif
+
+endprogram

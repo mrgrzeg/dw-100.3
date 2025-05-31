@@ -1,0 +1,56 @@
+use uo;
+use os;
+use util;
+//-----------------------------------------------------------------------------
+
+include "include/logerror";
+include "include/mobile/npcs/name";
+include "include/client/cids";
+include "include/mobile/npcs/utils";
+include "include/attributes/vitals";
+include "include/npcs";
+include "include/mobile/npcs/creation";
+include "include/resurrect";
+include ":character:checks";
+
+//-----------------------------------------------------------------------------
+
+program GainTest(who)
+  
+  SendGood(who, "Refresh odpalony");
+  who.ar_mod := 4444;
+
+  while(IsLoggedIn(who))
+    if(GetHp(who) < GetMaxHp(who) or GetMana(who) < GetMaxMana(who) or GetStamina(who) < (GetMaxStamina(who)/2))
+      SetHp(who, GetMaxHp(who));
+      SetMana(who, GetMaxMana(who));
+      SetStamina(who, GetMaxStamina(who));
+      who.setlightlevel (0, 100000);
+    endif
+    if(who.dead)
+      ResurrectPlayer(who);
+      SetHp(who, GetMaxHP(who));
+      SetMana(who, GetMaxMana(who));
+      SetStamina(who, GetMaxStamina(who));
+
+      var dRobe := GetEquipmentByLayer(who, LAYER_ROBE);
+      if(dRobe)
+        DestroyItem(dRobe);
+      endif
+
+      var Corpse := FindItemBySerial(GetObjProperty(who, PROP_CORPSESER));
+
+      if(Corpse)
+        foreach sItem in ListRootItemsInContainer(Corpse)
+          if(!EquipItem(who, sItem))
+            MoveToPack(sItem, who);
+          endif
+        endforeach
+      endif
+    endif
+    Sleepms(500);
+  endwhile
+  
+endprogram
+
+//-----------------------------------------------------------------------------

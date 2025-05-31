@@ -1,0 +1,7 @@
+AuxService
+{
+    Port 5001
+    Script :ext_service:ext_serv
+
+    
+}

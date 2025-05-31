@@ -1,0 +1,87 @@
+use uo;
+use cfgfile;
+//-----------------------------------------------------------------------------
+
+include "include/const/misc";
+include "include/const/cfgs";
+include "include/items/made";
+include "include/objtypes/skills";
+include "include/tools";
+
+//-----------------------------------------------------------------------------
+
+const UNIQUE_QUALITY_MULTIPLIER        := 1.65;
+const UOBJ_DAEMON_BONES 			         := 0xF80;
+
+//-----------------------------------------------------------------------------
+
+program MakeExpItem(who)
+  
+  var Item := ObjTarget(who);
+  var ItemCfg  := ReadConfigFile(ITEMS_CFG);
+  var CfgElem  := ItemCfg[Item.objtype];  
+
+  if(CfgElem.RingMail or CfgElem.Plate or CfgElem.Chain or CfgElem.IngotMod or (Item.isa(POLCLASS_WEAPON) and !CfgElem.AmmoType and !CfgElem.LogMod))
+    var SmithCfg := ReadConfigFile(":blacksmithy:materials");
+    SetMade(who, Item, MTYPE_INGOT, CInt(SmithCfg[UOBJ_MYSTIC_INGOT].ArMod));
+    Item.color := CInt(ItemCfg[UOBJ_MYSTIC_INGOT].Color);
+    var NewName := GetExpItemName(Item, UOBJ_MYSTIC_INGOT, CfgElem);
+    SetName(Item,NewName);
+    Item.ar_mod := Cint(SmithCfg[UOBJ_MYSTIC_INGOT].ArMod);
+    if(CfgElem.Chain)
+      Item.ar_mod := Item.ar_mod - 4;
+    endif
+    SetItemQuality(Item, UNIQUE_QUALITY_MULTIPLIER);
+    SetItemHp(Item, GetItemMaxHp(Item));
+  elseif(CfgElem.LogMod or CfgElem.AmmoType)
+    SetMade(who, Item, MTYPE_LOG, CInt(ItemCfg[UOBJ_MYSTICLOG].LogMod));
+    Item.color := CInt(ItemCfg[UOBJ_MYSTICLOG].Color);
+    var NewName := GetExpItemName(Item, UOBJ_MYSTICLOG, CfgElem);
+    SetName(Item,NewName);
+    Item.quality := EXP_QUALITY_MULTIPLIER;
+    SetItemHp(Item, GetItemMaxHp(Item));
+  elseif(CfgElem.Bones)
+    SetMade(who, Item, MTYPE_HIDE, CInt(ItemCfg[UOBJ_MYSTICHIDE].MatMod));
+    Item.color := CInt(ItemCfg[UOBJ_MYSTICHIDE].Color);
+    var NewName := GetExpItemName(Item, UOBJ_DAEMON_BONES, CfgElem);
+    SetName(Item,NewName);
+    Item.quality := EXP_QUALITY_MULTIPLIER;
+    SetItemHp(Item, GetItemMaxHp(Item));
+    Item.ar_mod := 10;
+  elseif(CfgElem.Studded)
+    SetMade(who, Item, MTYPE_HIDE, CInt(ItemCfg[UOBJ_MYSTICHIDE].MatMod));
+    Item.color := CInt(ItemCfg[UOBJ_MYSTICHIDE].Color);
+    var NewName := GetExpItemName(Item, MTYPE_HIDE, CfgElem);
+    SetName(Item,NewName);
+    Item.quality := EXP_QUALITY_MULTIPLIER;
+    SetItemHp(Item, GetItemMaxHp(Item));
+    Item.ar_mod := 9;
+  endif
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function GetExpItemName(Item, MatObjtype, CfgElem)
+
+  var NewName := "";
+
+  if(CfgElem.RingMail or CfgElem.Plate or CfgElem.Chain or CfgElem.IngotMod or (Item.isa(POLCLASS_WEAPON) and !CfgElem.AmmoType and !CfgElem.LogMod))
+    NewName := GetDescForItem(Item) + " " + GetDpsType(MatObjtype) + " " + GetDps(MatObjtype, Item.objtype);
+    NewName := EXP_ITEM_NAME + " " + NewName;
+  elseif(CInt(CfgElem.Bones))
+    NewName := GetDescForItem(Item.objtype) + " " + GetDpsType(MatObjtype) + " " + GetDps(MatObjtype, Item.objtype);
+    NewName := EXP_ITEM_NAME + " " + NewName;
+  elseif(CfgElem.LogMod or CfgElem.AmmoType)
+    NewName := GetDps(MatObjtype, Item.objtype) + " " + GetDescForItem(Item.objtype);
+    NewName := EXP_ITEM_NAME + " " + NewName;
+  elseif(CInt(CfgElem.Studded))
+    NewName := GetDescForItem(Item.objtype) + " " + GetDps(MatObjtype, Item.objtype);
+    NewName := EXP_ITEM_NAME + " " + NewName;
+  endif
+
+  return NewName;
+
+endfunction
+
+//-----------------------------------------------------------------------------

@@ -1,0 +1,52 @@
+use uo;
+
+//-----------------------------------------------------------------------------
+
+include "include/std";
+include "include/misc";
+include "include/const/misc";
+include "include/const/props";
+include "include/items";
+include "include/items/creation";
+include ":accounts:accounts";
+
+//-----------------------------------------------------------------------------
+
+program Gifts( _who )
+
+  __ParamUnused(_who);
+  var cfgGifts := ReadConfigFile( ":xmas:gifts" );
+  var Time := ExtractTimeComponents( PolCore().systime );
+
+  if(CInt(cfgGifts["ServerAnniversary"].Day) == Time.day and CInt(cfgGifts["ServerAnniversary"].Month) == Time.month and Time.hour == CInt(cfgGifts["ServerAnniversary"].Hour))
+    foreach serial in GetAllChars()
+      var who := FindPlayerBySerial(serial);
+      if(CInt(GetObjProperty(who, "AnniversaryGiftBox")) != Time.year)
+        GiveAnniversaryGift(who, Time);
+      endif
+    endforeach
+  endif
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function GiveAnniversaryGift(who, Time)
+
+  var GiftBox := CreateItemAtTempLoc( GIFT_BOX_OBJTYPE );
+
+  if(GiftBox)
+    if( MoveItemToContainer( GiftBox, who.backpack ))
+      var Ticket := CreateItemInCont( GiftBox, UOBJ_TICKET );
+      GiftBox.movable := 0;
+      SetObjProperty( who, "AnniversaryGiftBox", Time.year);
+      SetObjProperty( who, "GiftBox", GiftBox.serial);
+      SetObjProperty( Ticket, "AnniversaryGiftOwner", who.serial);
+      SetName(Ticket, "Bilet Sprzedawcy Upominkow");
+      SendSysMessage( who, "Otrzymal"+ggm( who, 3 )+" prezent z okazji rocznicy serwera.", FONT_NORMAL, COLOR_BLUE);
+    else
+      DestroyItem( GiftBox );
+    endif
+  endif
+
+endfunction

@@ -1,0 +1,130 @@
+//-----------------------------------------------------------------------------
+
+use uo;
+use util;
+
+//-----------------------------------------------------------------------------
+
+include ":ai_handler:utils/misc";
+include ":ai_speech:utils/speech";
+include ":ai_speech:utils/question";
+
+include "include/gumps";
+include "include/gumpboxes";
+
+include ":npcguilds:ngd_ctrl";
+include ":ngd_npcs:common";
+include ":ngd_npcs:membership";
+include ":ngd_npcs:quests";
+
+//-----------------------------------------------------------------------------
+
+program GuildNpcChooseSkill(Data)
+
+  if(!AIHandler_Init(Data))
+    return error;
+  endif
+
+  if(!IsGuildNpc(Data.npc))
+    return -1;
+  endif
+
+  if(!CheckPlayerMembership(Data.npc, Data.source, CPM_NOCHECK_LEVEL))
+    return 0;
+  endif
+
+  var PlayerData := GetObjProperty(Data.source, PROP_NGDDATA);
+  var NpcData    := GetObjProperty(Data.npc, PROP_NGDDATA);
+  var NpcGuild   := GetNpcGuild(Data.npc);
+  var SkChTime   := PlayerData.SkChTimedict[NpcData.GuildId];
+
+  if(!SkChTime)
+    SkChTime := PlayerData.SkChTime;
+  endif
+
+  if(SkChTime + NGD_CHSK_DELAY > ReadGameClock())
+    NpcSpeechJustSay(Data.npc, Data.source, "Nie minal odpowiedni czas dla Ciebie, by moc zmienic swa umiejetnosc do doskonalenia.");
+    return;
+  elseif(NpcData.Level != 5)
+    NpcSpeechJustSay(Data.npc, Data.source, "Jesli chcesz wybrac swa umiejetnosc do doskonalenia, zglos sie do Mistrza.");
+    return;
+  endif
+
+  var SkIDs := NpcGuild.GetProp(GDPROP_SKIDS);
+  var Idx := ChooseSkillGump(Data.source,  SkIDs);
+
+  if(Idx)
+    foreach GdData in (PlayerData.Guilds)
+      __ParamUnused(GdData);
+      if(_GdData_iter == NpcData.GuildId)
+        SetBitOn(PlayerData.Guilds[_GdData_iter].Flags, NGPF_MAXSK_CHOOSEN);
+      endif
+      SetObjProperty(Data.source, PROP_NGDDATA, PlayerData);
+    endforeach
+
+    var SkID := SkIDs[Idx];
+
+    //tu ustawia nowy skill i zwraca 1
+    if(!SetMaxSkillValue(Data.source, SkID, DEF_SK_MAX_VALUE + PlayerData.Guilds[NpcData.GuildId].Level*NGD_SKILL_MAX_MULTI, MSKT_NPCGUILD, NpcData.GuildId))
+      NpcSpeechJustSay(Data.npc, Data.source, "Nie mozesz czemus udoskonalic umiejetnosci teraz...");
+      PlayerData := GetObjProperty(Data.source, PROP_NGDDATA);
+      SetBitOff(PlayerData.Guilds[NpcData.GuildId].Flags, NGPF_MAXSK_CHOOSEN);
+      SetObjProperty(Data.source, PROP_NGDDATA, PlayerData);
+      return;
+    endif
+
+    // SetMaxSkillValue zmieni player Data automatyucznie
+    PlayerData := GetObjProperty(Data.source, PROP_NGDDATA); //aktualizacja po zmianach w SetMaxSkillValue
+
+    if(PlayerData.MaxSkIDdict[NpcData.GuildId] != SkId)
+      NpcSpeechJustSay(Data.npc, Data.source, "Oops.. cos poszlo nie tak!");
+      SetBitOff(PlayerData.Guilds[NpcData.GuildId].Flags, NGPF_MAXSK_CHOOSEN);
+      SetObjProperty(Data.source, PROP_NGDDATA, PlayerData);
+      return;
+    else
+      NpcSpeechJustSay(Data.npc, Data.source, "Dobrze, twa wola.. wybral"+ggm(Data.source,3)+" umiejetnosc "+ClStr(GetSkillConfigElem(PlayerData.MaxSkID).Name)+".");
+    endif
+    SetObjProperty(Data.source, PROP_NGDDATA, PlayerData);
+    var MaxSkGildDictCnt := GetObjProperty(Data.source, "NewGuildMaxSkillSystem");
+    if(!IsDict(MaxSkGildDictCnt))
+      MaxSkGildDictCnt := dictionary;
+    endif
+    MaxSkGildDictCnt[NpcData.GuildId] := SkId; //info ze skill juz przestawiony/wybrany w tej gildii
+    SetObjProperty(Data.source, "NewGuildMaxSkillSystem", MaxSkGildDictCnt);
+  else
+
+    NpcSpeechJustSay(Data.npc, Data.source, "Co za niezdecydowane stworzenie...");
+
+  endif
+
+  return 1;
+
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function ChooseSkillGump(who, SkillIds)
+
+  var i := 0;
+  var maxSkId := GetMaxSkillId();
+
+  GInit(50,50);
+  GResPic(0, 0, BKGND_SILVERTRIM, 300, 80 + (SkillIds.size() * 20));
+
+  GTextLine(50,25,400,"Umiejetnosci: ");
+
+  foreach SkID in SkillIds
+    SkID := CInt(SkID);
+    if(SkID >= 0 and SkID <= maxSkId)
+      GTextLine(55, 50 + (i*20), 999, ClStr(GetSkillConfigElem(SkID).Name));
+      GButton(30, 53 + (i*20), 2117, 2118, i+1);
+    endif
+
+    i := i + 1;
+  endforeach
+
+  return CInt(GSend(who)[0]);
+
+endfunction
+
+//-----------------------------------------------------------------------------

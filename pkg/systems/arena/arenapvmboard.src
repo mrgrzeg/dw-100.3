@@ -1,0 +1,223 @@
+//-----------------------------------------------------------------------------
+
+include "include/msgs";
+include "include/gumpboxes";
+include ":banking:common";
+include ":character:name_check";
+include ":arena:arena";
+
+//-----------------------------------------------------------------------------
+
+program ArenaPvmBoard(who, Item)
+  
+  var Data := InitData();
+  var TeamArr := 0;
+
+  while(IsLoggedIn(who))
+    BuildMainGump(who, item);
+    BuildNpcListGump(Data);
+
+    var GSendRes := GSend(who);
+    case(GSendRes.butid)
+      0:  return;
+
+      1:  StopPvmArena(who);
+
+      3:  TrialLimit(who, item); //ograniczenie na event
+
+      default:
+        if(GSendRes.butid > 100)
+          if(!CanEnterArenaPvM())
+            SendBad(who, "Ktos juz uzywa areny PvM");
+            return;
+          endif
+          if(YesNoEx(who, "Jestes pewn"+Ggm(who,6)+" ze chcesz walczyc z tym stworzeniem?"))
+            PrepareArena(Data.MonsterToButtonID[GSendRes.butid]); //przekazuje template moba; ostatecznie zamiast 101 da� Butid
+            SendGood(who, "Portal na arene otwiera sie!");
+            if(GetObjProperty(item, "Only3Trials"))
+              if(CInt(GetObjProperty(who, "ArenaPvmTrialsCnt")) >= 3)
+                SendBad(who, "Przekroczyl"+ggm(who,3)+" limit prob.");
+                return;
+              endif
+              SetObjProperty(who, "ArenaPvmTrialsCnt", CInt(GetObjProperty(who, "ArenaPvmTrialsCnt"))+1);
+            else
+              if(CInt(GetObjProperty(who, "ArenaPvmTrialsCnt")))
+                EraseObjProperty(who, "ArenaPvmTrialsCnt");
+              endif
+            endif
+            if(GSendRes.switches[1])
+              TeamArr := AddTeam(who);
+              if(!TeamArr)
+                return;
+              endif
+            endif
+            start_script(":arena:arenapvm_control", array{who, Item, Data.MonsterToButtonID[GSendRes.butid], GSendRes.switches[1], TeamArr}); //tak samo tu
+            return;
+          endif
+        endif
+    endcase
+  endwhile
+  
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function BuildMainGump(who, item)
+
+  var SzerokoscOkna := 400;
+  var SzerokoscDlaAdmina := 0;
+
+  if(IsStaff(who))
+    SzerokoscDlaAdmina := 100;
+  endif
+
+  GInit(0, 0);
+  GMode(GMODE_NORMAL, GSMODE_PACKET);
+  GNoDispose();
+  GResPic(150, 100, 3600, SzerokoscOkna + SzerokoscDlaAdmina, 600);
+  GGumpPic(100, 110, 10440);
+  GGumpPic(515 + SzerokoscDlaAdmina, 110, 10441);
+  var TitlePosX := GCenterText(SzerokoscOkna + SzerokoscDlaAdmina, "Arena PvM");
+  GTextLine(TitlePosX+140, 120, 660, "Arena PvM");
+
+  //GCheckBox(180, 460, 2714, 2715, 2); //po evencie wlaczyc
+  //GTextLine(200, 460, 660, "Walka z ekipa"); //Walka bez wpisku do historii
+
+  if(IsAdmin(who))
+    GTextLine(400, 160, 660, "Dla Admina:");
+    GButton(400, 180, 2714,2715, 1);
+    GTextLine(420, 180, 660, "Zakoncz walke");
+    GButton(400, 200, 2714,2715, 3);
+    GTextLine(420, 200, 660, "Ograniczenie do 3 prob na gracza");
+    if(GetObjProperty(item, "Only3Trials"))
+      GTextLine(420, 220, 660, "Ograniczenie do 3 prob Wlaczone");
+    endif
+  endif
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function BuildNpcListGump(byref Data)
+
+  var MonsterDict := GetConfigStringDictionary( ReadConfigFile(ARENA_CFG)["PvMMonsters"], "Monster" );
+  var MonsterArr := MonsterDict.Keys();
+
+  foreach NpcObjtype in MonsterArr
+    GButton(180, 140+(_NpcObjtype_iter*30), 2714,2715, 100+_NpcObjtype_iter);
+    GTextLine(200, 140+(_NpcObjtype_iter*30), 660, MonsterDict[NpcObjtype]);
+    Data.MonsterToButtonID[100+_NpcObjtype_iter] := NpcObjtype;
+  endforeach
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function InitData()
+
+  var Data := struct;
+  Data.+MonsterToButtonID := dictionary;
+
+  return Data;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function CanEnterArenaPvM()
+
+  var Script := GetProc(GetGlobalProperty("ArenaPvMPid"));
+
+  if(Script)
+    LogError("[ArenaPvM] Probowano otworzyc portal areny pvm. Portal jest juz otwarty!");
+    return 0;
+  endif
+
+  return 1;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function PrepareArena(template)
+
+  var ArenaCfg := ReadConfigFile(ARENA_CFG);
+  var MonsterLoc := SplitWords(ArenaCfg[ "PvMLocs" ].MonsterLoc);
+  var Realm := MonsterLoc[4];
+  MakeIntArray(MonsterLoc);
+  var x := MonsterLoc[1];
+  var y := MonsterLoc[2];
+  var z := MonsterLoc[3];
+  var Npc := CreateNpc(template, x, y, z ,Realm, DEF_PARMS, NPCF_NO_LOOT);
+  SetFlag(Npc, NPCF_NO_LOOTING);
+  SetFlag(Npc, NPCF_NO_CORPSE);
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function StopPvmArena(who)
+
+  var Proc := GetProc(GetGlobalProperty("ArenaPvMPid"));
+  var event := struct;
+  event.type := "ForceEnd";
+  Proc.sendevent(event);
+  SendGood(who, "Arena Zatrzymana!");
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function TrialLimit(who, item)
+
+  if(IsStaff(who))
+    if(!GetObjProperty(item, "Only3Trials"))
+      SetObjProperty(item, "Only3Trials", 1);
+      SendGood(who, "Ustawiona max ilosc prob na 3");
+    else
+      EraseObjProperty(item, "Only3Trials");
+      SendGood(who, "Brak ograniczen ilosci prob");
+    endif
+  endif
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function AddTeam(who)
+
+  if(IsStaff(who))
+    SendBad(who, "Ekipa nie moze tworzyc ekipy.");
+    return 0;
+  endif
+
+  var PlayersArr := array;
+  var MaxPlayersCnt := 6;
+  SendGood(who, "Dodaj czlonkow swojej druzyny.");
+
+  PlayersArr.append(who);
+
+  while(PlayersArr.size() < MaxPlayersCnt)
+    var Player := ObjTarget(who);
+    if(!IsPlayer(Player) and Player)
+      SendBad(who, "To nie gracz!");
+    elseif(Player == who)
+      SendBad(who, "Jestes przywodca tej druzyny.");
+    elseif(!Player)
+      SendBad(who, "Anulowano.");
+      if(YesNoEx(who, "Czy chcesz przerwac dodawanie kolejnych osob do druzyny?"))
+        return PlayersArr;
+      endif
+    else
+      if(!(Player in PlayersArr))
+        PlayersArr.append(Player);
+        SendGood(who, "Dodal{} {} do swojej duzyny.".format(ggm(who, GGM_AS), Player.name));
+      else
+        SendBad(who, "Juz dodal{} ta osobe!".format(ggm(who, GGM_AS)));
+      endif
+    endif
+  endwhile
+
+  return PlayersArr;
+
+endfunction

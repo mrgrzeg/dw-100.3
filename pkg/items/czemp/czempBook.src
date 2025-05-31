@@ -1,0 +1,131 @@
+use uo;
+use os;
+
+include "include/client/fonts";
+include "include/client/effects";
+include "include/gumps";
+include "include/portals";
+
+
+
+
+
+
+var teleportsCfg := ReadConfigFile(":teleportBook:teleports");
+
+
+     
+
+    
+    
+
+    
+
+program use_teleportBook(who, theBook)
+/*
+    if(theBook.container != who.backpack)
+        SendSysMessage(who, "Ksiega musi byc w twoim plecaku.", FONT_NORMAL, COLOR_RED);
+        return;
+    endif*/
+    
+    
+	
+	/*if(who.realm != BRITA_REALM)
+		SendSysMessage(who, "W tym miejscu ksiega nie moze zostac uzyta", FONT_NORMAL, COLOR_RED);
+		return;
+	endif*/
+	
+	
+	
+	
+    
+    GInit(0, 0);
+
+    GGumpPic(20, 28, 510, 0); 
+    GButton(60, 80, 1210, 248, 11); // Mroczny Ojciec
+    GButton(60, 100, 1210, 248, 12); // Pozeracz Cial
+    GButton(60, 120, 1210, 248, 13); // Przekluwacz
+    GButton(60, 140, 1210, 248, 14); // Mroczny Rycerz
+    GButton(60, 160, 1210, 248, 15); // Siewca Terroru
+ 
+    GTextLine(90, 80, 0, "Mroczny Ojciec");
+    GTextLine(90, 100, 0, "Pozeracz Cial");
+    GTextLine(90, 120, 0, "Przekluwacz");
+    GTextLine(90, 140, 0, "Mroczny Rycerz");
+    GTextLine(90, 160, 0, "Siewca Terroru");
+   
+    GButton(51, 35, 2152, 248, 0);
+    GTextLine(85, 41, 0, "Ilosc Ladunkow:");
+    
+    if(!GetObjProperty(theBook, "Charges"))
+        GTextLine(180, 41, 0, "Brak");
+        SetObjProperty(theBook, "Charges", 0);
+    else
+        GTextLine(180, 41, 0, CInt(GetObjProperty(theBook, "Charges")));
+    endif
+   
+    
+    var res := GSend(who);
+    
+    if(!res)
+        SendSysMessage(who, "Anulowano.", FONT_NORMAL, COLOR_RED);
+        
+        return;
+    endif
+    
+    SendSysMessage(who, "Kliknieto w " + res[0]);
+    
+    var cityName := ParseCityName(res[0]);
+    
+    ParseBookTouch(who, theBook, cityName);
+    
+endprogram
+
+function ParseCityName(cityNumber)
+
+    case(cityNumber)
+	11: return "Kosciany Demon";
+	12: return "Pozeracz Cial";
+	13: return "Przekluwacz";
+	14: return "Mroczny Rycerz";
+	15: return "Siewca Terroru";
+	
+
+	
+    default: return error;
+    endcase
+
+endfunction
+
+function ParseBookTouch(who, theBook, cityName)
+
+
+var coords := teleportsCfg[cityName];
+
+    if(!coords)
+        SendSysMessage(who, "Blad w ksiedze: " + cityName + " nie jest wpisane w plik .cfg", FONT_NORMAL, COLOR_RED);
+        return;
+  endif
+  
+  
+   
+    
+    
+    
+    if(CInt(GetObjProperty(theBook, "Charges")) <= 0)
+        SendSysMessage(who, "Twoja ksiega nie ma ladunkow.", FONT_NORMAL, COLOR_RED);
+        return;
+    else
+    
+       SetObjProperty(theBook, "Charges", CInt(GetObjProperty(theBook, "Charges"))-1);
+        
+        CreateGateTravel(who.x, who.y, who.z, who.realm, coords.x, coords.y, coords.z, coords.realm);
+        
+    endif
+    
+endfunction
+    
+
+    
+
+    

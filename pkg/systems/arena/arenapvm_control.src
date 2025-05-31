@@ -1,0 +1,582 @@
+//-----------------------------------------------------------------------------
+
+include "include/checks/objchecks";
+include "include/gumpboxes";
+include "include/clock";
+include "include/portals";
+
+include "include/log";
+include "include/player/misc";
+include "include/move";
+include "include/misc";
+include "include/mount";
+include "include/cmds/cmds";
+include ":arena:arena";
+
+//-----------------------------------------------------------------------------
+
+const ZOO_PORTAL_NAME := "Wejscie do poczekalni Areny";
+const ARENA_PORTAL_TIME := 300; //otwarty przez 5 minut
+const ONLY_KILL_MONSTER := 1;
+
+//-----------------------------------------------------------------------------
+
+var Gate1Gate2Arr;
+
+//-----------------------------------------------------------------------------
+
+program ArenaPvM_Control(ParamsArray)
+
+  var who := ParamsArray[1];
+  var ArenaBoard := ParamsArray[2];
+  var MonsterTemp := ParamsArray[3];
+  var SelectedTestOnly := ParamsArray[4];
+  var PlayersTeam := ParamsArray[5];
+
+  SetGlobalProperty("ArenaPvMPid", GetPid());
+
+  if(CreateEntryPortal(who, ArenaBoard, PlayersTeam))
+    if(CreatePortalFightArena(who, ArenaBoard, PlayersTeam))
+      FightLoop(who, ArenaBoard, MonsterTemp, SelectedTestOnly, PlayersTeam);
+    endif
+  endif
+  ClearArena();
+  
+endprogram
+
+//-----------------------------------------------------------------------------
+
+function CreateEntryPortal(who, ArenaBoard, PlayersTeam := 0)
+
+  var OutLocArr := SplitWords(ReadConfigFile(ARENA_CFG)[ "PvMLocs" ].PortalDoTreseraOut);
+  var OutRealm := OutLocArr[4];
+  MakeIntArray(OutLocArr);
+
+  var Source := struct;
+  Source.+x := ArenaBoard.x;
+  Source.+y := ArenaBoard.y+3;
+  Source.+z := ArenaBoard.z;
+  Source.+realm := ArenaBoard.realm;
+
+  var Dest := struct;
+  Dest.+x := OutLocArr[1];
+  Dest.+y := OutLocArr[2];
+  Dest.+z := OutLocArr[3];
+  Dest.+realm := OutRealm;
+
+  var PortalLocStruct := CreateArenaPortalStruct(Source, Dest);
+  Gate1Gate2Arr := CreateArenaPvmPortal(who, PortalLocStruct, PlayersTeam);
+
+  var InPortalTiem := 120;
+  var ev;
+  var EventStopped := 0;
+
+  for i:=1 to InPortalTiem
+    ev :=  wait_for_event(1);
+    if(ev and ev.type == "ForceEnd")
+      EventStopped := 1;
+      break;
+    endif
+    if(PlayerInWaitingRoom(who, PlayersTeam))
+      break;
+    endif
+  endfor
+
+  if(EventStopped)
+    HidePortal(Gate1Gate2Arr[1]);
+    HidePortal(Gate1Gate2Arr[2]);
+    DestroyItem(Gate1Gate2Arr[1]);
+    DestroyItem(Gate1Gate2Arr[2]);
+    Sleep(1);
+    OpenOutGate(who, ArenaBoard, PlayersTeam);
+    return 0;
+  endif
+
+  return 1;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function PlayerInWaitingRoom(who, PlayersTeam := 0)
+
+  var ArenaCfg := ReadConfigFile(ARENA_CFG);
+  var TreserArea := SplitWords(ArenaCfg[ "PvMLocs" ].TreserArea);
+  var TreserRealm := TreserArea[6];
+  MakeIntArray(TreserArea);
+  var x1 := TreserArea[1];
+  var y1 := TreserArea[2];
+  var x2 := TreserArea[3];
+  var y2 := TreserArea[4];
+  var z  := TreserArea[5];
+  var Cnt := 0;
+
+  foreach mobile in ListMobilesInBox( x1,y1,z, x2,y2,z, TreserRealm )
+    if(!PlayersTeam)
+      if(mobile == who)
+        return 1;
+      endif
+    else
+      if(mobile in PlayersTeam)
+        Cnt += 1;
+      endif
+    endif
+  endforeach
+
+  if(PlayersTeam and Cnt == PlayersTeam.size())
+    return 1;
+  endif
+
+  return 0;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function CreatePortalFightArena(who, ArenaBoard, PlayersTeam := 0)
+
+  var ArenaCfg := ReadConfigFile(ARENA_CFG);
+  var SourceLoc := SplitWords(ArenaCfg[ "PvMLocs" ].PortalWejscieNaArene);
+  var Realm := SourceLoc[4];
+  MakeIntArray(SourceLoc);
+  SourceLoc[4] := Realm;
+
+  var Source := struct;
+  Source.+x := SourceLoc[1];
+  Source.+y := SourceLoc[2];
+  Source.+z := SourceLoc[3];
+  Source.+realm := Realm;
+
+  var DestLoc := SplitWords(ArenaCfg[ "PvMLocs" ].PortalWyjsciowyZAreny);
+  Realm := DestLoc[4];
+  MakeIntArray(DestLoc);
+  DestLoc[4] := Realm;
+
+  var Dest := struct;
+  Dest.+x := DestLoc[1];
+  Dest.+y := DestLoc[2];
+  Dest.+z := DestLoc[3];
+  Dest.+realm := DestLoc[4];
+
+  var PortalLocStruct := CreateArenaPortalStruct(Source, Dest);
+  var PortalsArray := CreateArenaPvmPortal(who, PortalLocStruct, PlayersTeam);
+  SetObjProperty(PortalsArray[1], "FightPortal", 1);
+  var EventStopped := 0;
+  var ev;
+
+  for i:=1 to ARENA_PORTAL_TIME
+    ev :=  wait_for_event(1);
+    if(ev and ev.type == "ForceEnd")
+      EventStopped := 1;
+      break;
+    endif
+    if(PlayerInFightArena(who, PlayersTeam))
+      break;
+    endif
+  endfor
+
+  HidePortal(PortalsArray[1]); //Gate3
+  HidePortal(PortalsArray[2]); //Gate4
+  DestroyItem(PortalsArray[1]);
+  DestroyItem(PortalsArray[2]);
+
+  HidePortal(Gate1Gate2Arr[1]);
+  HidePortal(Gate1Gate2Arr[2]);
+  DestroyItem(Gate1Gate2Arr[1]);
+  DestroyItem(Gate1Gate2Arr[2]);
+
+  if(EventStopped)
+    OpenOutGate(who, ArenaBoard, PlayersTeam);
+    return 0;
+  endif
+
+  return 1;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function PlayerInFightArena(who, PlayersTeam := 0)
+
+  var ArenaCfg := ReadConfigFile(ARENA_CFG);
+  var FightArea := SplitWords(ArenaCfg[ "PvMLocs" ].FightArea);
+  var FightAreaRealm := FightArea[6];
+  MakeIntArray(FightArea);
+  var x1 := FightArea[1];
+  var y1 := FightArea[2];
+  var x2 := FightArea[3];
+  var y2 := FightArea[4];
+  var Cnt := 0;
+
+  foreach mobile in ListMobilesInBox( x1,y1,-50, x2,y2,50, FightAreaRealm )
+    if(!PlayersTeam)
+      if(mobile == who)
+        return 1;
+      endif
+    else
+      if(mobile in PlayersTeam)
+        Cnt += 1;
+      endif
+    endif
+  endforeach
+
+  if(PlayersTeam and Cnt == PlayersTeam.size())
+    return 1;
+  endif
+
+  return 0;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function FightLoop(who, ArenaBoard, MonsterTemp, SelectedTestOnly, PlayersTeam := 0)
+
+  var PlayerDead := 0;
+
+  while(IsLoggedIn(who))
+    var ev :=  wait_for_event(1);
+    if(ev and ev.type == "ForceEnd")
+      SendBad(who, "Arena zatrzymana przez Bogow!");
+      OpenOutGate(who, ArenaBoard, PlayersTeam);
+      return;
+    endif
+    if(!PlayersTeam)
+      if(who.dead)
+        PlayerDead := 1;
+        break;
+      endif
+    else
+      if(CheckPlayersTeamDead(PlayersTeam))
+        PlayerDead := 1;
+        break;
+      endif
+    endif
+    if(IsMonsterKilled(MonsterTemp)) //Monster pokonany
+      break;
+    endif
+  endwhile
+
+  if(!SelectedTestOnly)
+    var StartTime := GetObjProperty(who, "PvmArenaFightStartedAt");
+    SaveArenaPvmData(who, (ReadGameClock() - StartTime), MonsterTemp);
+    SendGood(who, "Twoja walka przeszla do historii");
+  endif
+  EraseObjProperty(who, "#TeleDelayed");
+  KillArenaMonster(MonsterTemp);
+  Sleep(2);
+  if(PlayerDead)
+    if(!PlayersTeam)
+      ArenaPvMAutoRes(who);
+    else
+      ResTeamMembers(PlayersTeam);
+    endif
+  endif
+  OpenOutGate(who, ArenaBoard, PlayersTeam);
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function SaveArenaPvmData(who, fightTime, MonsterTemp)
+
+  var ArenaPvmHistory := GetGlobalProperty("ArenaPvmHistory");
+  if(!IsDict(ArenaPvmHistory))
+    ArenaPvmHistory := dictionary;
+  endif
+
+  if(who.dead)
+    fightTime += 3600; //to zeby gracz ktory padl byl na koncu listy
+  endif
+
+  ArenaPvmHistory[ fightTime ] := dictionary{"Player" -> who.serial, 
+                                             "Monster" -> MonsterTemp, 
+                                             "FightStart" -> POLCore().systime, 
+                                             "WhoWon" -> __IfElse(who.dead, "Monster","Player")
+                                             };
+
+  SetGlobalProperty("ArenaPvmHistory", ArenaPvmHistory);
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function ArenaPvMAutoRes(who)
+
+  ResurrectPlayer(who);
+  SetHp(who, GetMaxHP(who));
+  SetMana(who, GetMaxMana(who));
+  SetStamina(who, GetMaxStamina(who));
+
+  var dRobe := GetEquipmentByLayer(who, LAYER_ROBE);
+  if(dRobe)
+    DestroyItem(dRobe);
+  endif
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function ClearArena(flag := 0)
+
+  var ArenaCfg := ReadConfigFile(ARENA_CFG);
+  var FightArea := SplitWords(ArenaCfg[ "PvMLocs" ].FightArea);
+  var FightAreaRealm := FightArea[6];
+  MakeIntArray(FightArea);
+  var x1 := FightArea[1];
+  var y1 := FightArea[2];
+  var x2 := FightArea[3];
+  var y2 := FightArea[4];
+
+  foreach obj in ListObjectsInBox( x1,y1,-50, x2,y2,50, FightAreaRealm )
+    if(obj.isa(POLCLASS_NPC) and !IsTamed(obj))
+      KillNpc(obj);
+    endif
+    if(flag != ONLY_KILL_MONSTER)
+      if(obj.isa(POLCLASS_CORPSE))
+        DestroyItem(obj);
+      endif
+    endif
+  endforeach
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function OpenOutGate(who, ArenaBoard, PlayersTeam := 0)
+
+  ClearArena(ONLY_KILL_MONSTER);
+  var SourceLoc;
+
+  if(PlayerInFightArena(who, PlayersTeam))
+    SourceLoc := SplitWords(ReadConfigFile(ARENA_CFG)[ "PvMLocs" ].PortalWyjsciowyZAreny);
+  else
+    SourceLoc := SplitWords(ReadConfigFile(ARENA_CFG)[ "PvMLocs" ].PortalDoTreseraOut);
+  endif
+
+  var Realm := SourceLoc[4];
+  MakeIntArray(SourceLoc);
+  var Source := struct;
+  Source.+x := SourceLoc[1];
+  Source.+y := SourceLoc[2];
+  Source.+z := SourceLoc[3];
+  Source.+realm := Realm;
+
+  var Dest := struct;
+  Dest.+x := ArenaBoard.x;
+  Dest.+y := ArenaBoard.y+3;
+  Dest.+z := ArenaBoard.z;
+  Dest.+realm := ArenaBoard.realm;
+
+  var PortalLocStruct := CreateArenaPortalStruct(Source, Dest);
+  var PortalsArray := CreateArenaPvmPortal(who, PortalLocStruct, PlayersTeam);
+
+  for i:=1 to ARENA_PORTAL_TIME
+    Sleep(1);
+    if(who.dead)
+      ArenaPvMAutoRes(who);
+    endif
+    if(!PlayersTeam)
+      if(!PlayerInFightArena(who, PlayersTeam) and !PlayerInWaitingRoom(who, PlayersTeam))
+        break;
+      endif
+    else
+      if(!TeamPlayersInFightArena(PlayersTeam) and !PlayerInWaitingRoom(who, PlayersTeam))
+        break;
+      endif
+    endif
+  endfor
+
+  HidePortal(PortalsArray[1]);
+  HidePortal(PortalsArray[2]);
+  DestroyItem(PortalsArray[1]);
+  DestroyItem(PortalsArray[2]);
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function CreateArenaPvmPortal(who, PortalLocStruct, PlayersTeam := 0)
+
+  if(!PortalLocStruct.DRlm)
+    PortalLocStruct.DRlm := _DEFAULT_REALM;
+  endif
+
+  if(!PortalLocStruct.SRlm)
+    PortalLocStruct.SRlm := _DEFAULT_REALM;
+  endif
+
+  if(!PortalLocStruct.Sx or !PortalLocStruct.Sy or PortalLocStruct.Sz == error or !PortalLocStruct.Dx or !PortalLocStruct.Dy or PortalLocStruct.Dz == error)
+    return 0;
+  endif
+
+  if(!PlayersTeam)
+    PlayersTeam := array{who};
+  endif
+
+  var Gate1 := CreateItemAtLoc(PortalLocStruct.Sx, PortalLocStruct.Sy, PortalLocStruct.Sz, UOBJ_TELE,1,PortalLocStruct.SRlm);
+  Gate1.name  := "Wyjscie z areny";
+  Gate1.color := 1152;
+  SetObjProperty( gate1, "ArenaPvM", 1);
+  SetObjProperty( gate1, "AllowedPlayer", GetPlayersTeamSerials(PlayersTeam));
+
+  var Gate2 := CreatePortal(UOBJ_BLUEGATE, PortalLocStruct.Dx, PortalLocStruct.Dy, PortalLocStruct.Dz, PortalLocStruct.DRlm, 0);
+  Gate2.name  := "Wyjscie z Areny";
+  Gate2.color := 1152;
+
+  SetObjProperty( Gate2, "ArenaPvM", 2);
+
+  PlaySoundEffect( Gate1, SFX_SPELL_GATE_TRAVEL );
+  PlaySoundEffect( Gate2, SFX_SPELL_GATE_TRAVEL );
+
+  SetObjProperty( Gate2, "DestGateSer", Gate1.serial);
+
+  SetObjProperty( Gate1, "DestX", Gate2.x);
+  SetObjProperty( Gate1, "DestY", Gate2.y);
+  SetObjProperty( Gate1, "DestZ", Gate2.z);
+  SetObjProperty( Gate1, "DestRlm", PortalLocStruct.DRlm);
+
+  SetObjProperty( Gate2, "DestX", Gate1.x);
+  SetObjProperty( Gate2, "DestY", Gate1.y);
+  SetObjProperty( Gate2, "DestZ", Gate1.z);
+  SetObjProperty( Gate2, "DestRlm", PortalLocStruct.SRlm);
+
+  var PortalsArr := array(Gate1,Gate2);
+  ShowPortal(PortalsArr);
+
+  return PortalsArr;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function CreateArenaPortalStruct(Source, Dest)
+
+  var PortalLocStruct := struct;
+  PortalLocStruct.+Sx := Source.x;
+  PortalLocStruct.+Sy := Source.y;
+  PortalLocStruct.+Sz := Source.z;
+  PortalLocStruct.+SRlm := Source.realm;
+
+  PortalLocStruct.+Dx := Dest.x;
+  PortalLocStruct.+Dy := Dest.y;
+  PortalLocStruct.+Dz := Dest.z;
+  PortalLocStruct.+DRlm := Dest.realm;
+
+  return PortalLocStruct;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function IsMonsterKilled(MonsterTemp)
+
+  var Monster := 1;
+  var FightArea := SplitWords(ReadConfigFile(ARENA_CFG)[ "PvMLocs" ].FightArea);
+  var realm := FightArea[6];
+  MakeIntArray(FightArea);
+  var x1 := FightArea[1];
+  var y1 := FightArea[2];
+  var x2 := FightArea[3];
+  var y2 := FightArea[4];
+
+  foreach obj in ListObjectsInBox( x1,y1,-50, x2,y2,50, realm )
+    if(obj.isa(POLCLASS_NPC) and obj.npctemplate == MonsterTemp)
+      Monster := 0;
+    endif
+  endforeach
+
+  return Monster;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function KillArenaMonster(MonsterTemp)
+
+  var FightArea := SplitWords(ReadConfigFile(ARENA_CFG)[ "PvMLocs" ].FightArea);
+  MakeIntArray(FightArea);
+  var x1 := FightArea[1];
+  var y1 := FightArea[2];
+  var x2 := FightArea[3];
+  var y2 := FightArea[4];
+
+  foreach obj in ListObjectsInBox( x1,y1,-50, x2,y2,50, FightArea[6] )
+    if(obj.isa(POLCLASS_NPC) and obj.npctemplate == MonsterTemp)
+      KillNpc(obj);
+    endif
+  endforeach
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function CheckPlayersTeamDead(PlayersTeam)
+
+  var Cnt := 0;
+
+  foreach who in PlayersTeam
+    if(who.dead)
+      Cnt += 1;
+    endif
+  endforeach
+
+  if(Cnt == PlayersTeam.size())
+    return 1;
+  endif
+
+  return 0;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function ResTeamMembers(PlayersTeam)
+
+  foreach who in PlayersTeam
+    ArenaPvMAutoRes(who);
+  endforeach
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function TeamPlayersInFightArena(PlayersTeam := 0)
+
+  var ArenaCfg := ReadConfigFile(ARENA_CFG);
+  var FightArea := SplitWords(ArenaCfg[ "PvMLocs" ].FightArea);
+  var FightAreaRealm := FightArea[6];
+  MakeIntArray(FightArea);
+  var x1 := FightArea[1];
+  var y1 := FightArea[2];
+  var x2 := FightArea[3];
+  var y2 := FightArea[4];
+  var Cnt := 0;
+
+  foreach mobile in ListMobilesInBox( x1,y1,-50, x2,y2,50, FightAreaRealm )
+    if(mobile in PlayersTeam)
+      Cnt += 1;
+    endif
+  endforeach
+
+  if(Cnt > 0)
+    return 1;
+  endif
+
+  return 0;
+
+endfunction
+
+//-----------------------------------------------------------------------------
+
+function GetPlayersTeamSerials(PlayersTeam)
+
+  var ReturnArr := array;
+
+  foreach who in PlayersTeam
+    ReturnArr.append(who.serial);
+  endforeach
+
+  return ReturnArr;
+
+endfunction
